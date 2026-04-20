@@ -210,7 +210,7 @@ def _select_from_registry(intent: PromptIntent) -> list[RegionCandidate]:
             source="registry",
             region=candidate.name,
             confidence=candidate.confidence,
-            reasons=reasons_list,
+            reasons=decision_reasons,
         )
 
     return results

@@ -1,0 +1,164 @@
+{
+  "version": 0.6,
+  "generator": "mock data for experience-app development",
+  "elements": [
+    {
+      "type": "node",
+      "id": 100001,
+      "lat": 50.289,
+      "lon": 18.962,
+      "tags": {
+        "ruins": "industrial",
+        "name": "Huta Pokój - Ruiny",
+        "historic": "ruins",
+        "description": "Dawna huta żelaza, działała 1840-1985"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100002,
+      "lat": 50.321,
+      "lon": 19.008,
+      "tags": {
+        "ruins": "industrial",
+        "name": "Kopalnia Polska (ruiny)",
+        "landuse": "industrial",
+        "disused": "yes",
+        "start_date": "1875"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100003,
+      "lat": 50.313,
+      "lon": 19.052,
+      "tags": {
+        "historic": "ruins",
+        "industrial": "yes",
+        "name": "Szyb Krystyna",
+        "man_made": "mineshaft",
+        "depth": "480",
+        "disused": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100004,
+      "lat": 50.241,
+      "lon": 19.014,
+      "tags": {
+        "railway": "abandoned",
+        "name": "Nieczynna bocznica Kopalnia Wieczorek",
+        "historic": "industrial",
+        "operator": "JSW S.A."
+      }
+    },
+    {
+      "type": "node",
+      "id": 100005,
+      "lat": 50.301,
+      "lon": 19.123,
+      "tags": {
+        "man_made": "works",
+        "disused": "yes",
+        "name": "Zakłady Chemiczne Dąb (nieczynne)",
+        "landuse": "industrial",
+        "start_date": "1902",
+        "end_date": "1992"
+      }
+    },
+    {
+      "type": "way",
+      "id": 200006,
+      "center": {
+        "lat": 50.334,
+        "lon": 19.061
+      },
+      "tags": {
+        "historic": "ruins",
+        "name": "Huta Florian - Ruiny",
+        "building": "industrial",
+        "ruins": "yes",
+        "description": "Dawna huta cynku, XIX wiek"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100007,
+      "lat": 50.270,
+      "lon": 18.842,
+      "tags": {
+        "landuse": "brownfield",
+        "name": "Koksownia Zabrze (teren poprzemysłowy)",
+        "description": "Dawna koksownia, zamknięta 1998",
+        "area": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100008,
+      "lat": 50.453,
+      "lon": 18.851,
+      "tags": {
+        "historic": "mine",
+        "name": "Kopalnia Tarnowskie Góry (historyczna)",
+        "landuse": "industrial",
+        "disused": "yes",
+        "start_date": "1782",
+        "heritage": "yes"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100009,
+      "lat": 50.249,
+      "lon": 18.924,
+      "tags": {
+        "man_made": "chimney",
+        "disused": "yes",
+        "name": "Komin Starej Cynkowni",
+        "material": "brick",
+        "height": "72"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100010,
+      "lat": 50.297,
+      "lon": 18.955,
+      "tags": {
+        "man_made": "mineshaft",
+        "disused": "yes",
+        "name": "Szyb Wilson (nieczynny)",
+        "depth": "350",
+        "start_date": "1898"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100011,
+      "lat": 50.235,
+      "lon": 19.033,
+      "tags": {
+        "building": "industrial",
+        "abandoned": "yes",
+        "name": "Familoki Nikiszowiec - Budynek przemysłowy",
+        "historic": "industrial",
+        "architect": "Georg & Emil Zillmann"
+      }
+    },
+    {
+      "type": "node",
+      "id": 100012,
+      "lat": 50.367,
+      "lon": 18.985,
+      "tags": {
+        "landuse": "industrial",
+        "abandoned": "yes",
+        "name": "Stara Cegielnia Ruda Śląska",
+        "historic": "industrial",
+        "disused": "yes"
+      }
+    }
+  ]
+}

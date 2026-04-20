@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     pipeline_wikimedia_radius_m: int = 1000
     # ─────────────────────────────────────────────────────────────────────────
 
+    # Mock mode — runs pipeline on sample data without any live API calls
+    mock_mode: bool = False
+
+    # Job store
+    job_store_path: str = "./data/jobs.db"
+    job_store_ttl_days: int = 7
+
     # Logging
     log_level: str = "INFO"
 

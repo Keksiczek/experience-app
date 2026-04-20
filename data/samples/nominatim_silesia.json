@@ -1,0 +1,10 @@
+[
+  {
+    "place_id": 298283412,
+    "display_name": "Horní Slezsko, Województwo Śląskie, Polska",
+    "boundingbox": ["50.1", "50.5", "18.8", "19.2"],
+    "importance": 0.75,
+    "class": "boundary",
+    "type": "administrative"
+  }
+]

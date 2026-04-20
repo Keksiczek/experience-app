@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "id": "1234567890123456",
+      "thumb_256_url": "https://scontent.mapillary.com/v4/MLY_SAMPLE/thumb_256.jpg",
+      "sequence": "ABCDEF1234567890"
+    },
+    {
+      "id": "1234567890123457",
+      "thumb_256_url": "https://scontent.mapillary.com/v4/MLY_SAMPLE2/thumb_256.jpg",
+      "sequence": "ABCDEF1234567890"
+    },
+    {
+      "id": "1234567890123458",
+      "thumb_256_url": "https://scontent.mapillary.com/v4/MLY_SAMPLE3/thumb_256.jpg",
+      "sequence": "BCDEF12345678901"
+    }
+  ]
+}

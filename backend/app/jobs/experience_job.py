@@ -27,22 +27,37 @@ from app.providers.wikimedia import WikimediaProvider
 
 logger = get_logger(__name__)
 
-_store: BaseJobStore = InMemoryJobStore()
+_store: BaseJobStore | None = None
+
+
+def _get_store() -> BaseJobStore:
+    global _store
+    if _store is None:
+        if settings.mock_mode:
+            _store = InMemoryJobStore()
+        else:
+            from app.jobs.sqlite_job_store import SQLiteJobStore
+            _store = SQLiteJobStore()
+    return _store
 
 
 def get_experience(job_id: str) -> Experience | None:
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(_store.get(job_id))
+    return asyncio.get_event_loop().run_until_complete(_get_store().get(job_id))
 
 
 async def get_experience_async(job_id: str) -> Experience | None:
-    return await _store.get(job_id)
+    return await _get_store().get(job_id)
+
+
+async def list_job_ids() -> list[str]:
+    return await _get_store().list_ids()
 
 
 async def create_job(prompt: str) -> Experience:
     job_id = str(uuid.uuid4())
     experience = Experience(id=job_id, prompt=prompt, job_status=JobStatus.PENDING)
-    await _store.save(experience)
+    await _get_store().save(experience)
     return experience
 
 
@@ -53,13 +68,26 @@ async def run_experience_job(experience: Experience) -> None:
 async def _execute_pipeline(experience: Experience) -> None:
     started_at = datetime.now(UTC)
     experience.job_status = JobStatus.RUNNING
-    await _store.save(experience)
+    await _get_store().save(experience)
 
     cache = FileCache(settings.cache_dir)
-    nominatim = NominatimProvider(cache)
-    overpass = OverpassProvider(cache)
-    mapillary = MapillaryProvider(cache)
-    wikimedia = WikimediaProvider(cache)
+
+    if settings.mock_mode:
+        from app.core.mock_mode import (
+            MockMapillaryProvider,
+            MockNominatimProvider,
+            MockOverpassProvider,
+            MockWikimediaProvider,
+        )
+        nominatim = MockNominatimProvider(cache)
+        overpass = MockOverpassProvider(cache)
+        mapillary = MockMapillaryProvider(cache)
+        wikimedia = MockWikimediaProvider(cache)
+    else:
+        nominatim = NominatimProvider(cache)
+        overpass = OverpassProvider(cache)
+        mapillary = MapillaryProvider(cache)
+        wikimedia = WikimediaProvider(cache)
 
     metadata = GenerationMetadata(started_at=started_at)
 
@@ -236,7 +264,7 @@ async def _execute_pipeline(experience: Experience) -> None:
         logger.exception("pipeline_unexpected_error", job_id=experience.id, error=str(e))
         await _fail(experience, "internal_error", "Neočekávaná chyba pipeline.", metadata)
 
-    await _store.save(experience)
+    await _get_store().save(experience)
 
 
 async def _fail(
@@ -253,7 +281,7 @@ async def _fail(
         metadata.degradation_reason = degradation_reason
     metadata.completed_at = datetime.now(UTC)
     experience.generation_metadata = metadata
-    await _store.save(experience)
+    await _get_store().save(experience)
     logger.error(
         "pipeline_failed",
         job_id=experience.id,
