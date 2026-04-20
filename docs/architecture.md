@@ -12,21 +12,27 @@ Backend je FastAPI aplikace. Zpracování experience je asynchronní job — vý
 Prompt (string)
     │
     ▼
-[1] Intent Parser
-    │  → PromptIntent (themes, terrain, mood, route_style, mode, ...)
+[1] Intent Parser V2
+    │  → PromptIntent (themes, terrain, mood, infrastructure, climate,
+    │                   travel_mode, route_style, mode, confidence_reasons,
+    │                   ambiguity_signals, parse_warnings)
     │  ✗ FAIL: prompt nesrozumitelný nebo mimo podporované módy → 400
     │
     ▼
-[2] Region Discovery
-    │  → RegionCandidate[] (bbox, name, source)
+[2] Region Discovery V2
+    │  → RegionCandidate[] (bbox, name, source, decision_reasons,
+    │                        expected_media_coverage, known_limitations)
+    │  Priorita: Nominatim → registry (mode-aware) → static JSON fallback
     │  ✗ FAIL: žádný region nenalezen → pipeline se zastaví
-    │  ⚠ WARN: nízká confidence → downgrade na broader region
+    │  ⚠ WARN: known_limitations propagovány do metadata.warnings
     │
     ▼
-[3] Place Discovery
-    │  → PlaceCandidate[] (lat, lon, tags, scores)
+[3] Place Discovery V2
+    │  → PlaceCandidate[] (lat, lon, tags, signal_strength, discovery_warnings)
+    │  OSM queries: tiered presets (must_have / strong / weak / blacklist)
+    │  Výstup: (places, discovery_warnings[])
     │  ✗ FAIL: méně než MIN_PLACES míst → pipeline se zastaví
-    │  ⚠ WARN: < IDEAL_PLACES míst → experience bude kratší
+    │  ⚠ WARN: < IDEAL_PLACES, žádné must_have hits, vysoký podíl no_name_tag
     │
     ▼
 [4] Media Resolution
@@ -35,9 +41,10 @@ Prompt (string)
     │  ⚠ WARN: chybí média → fallback_level se zvýší
     │
     ▼
-[5] Experience Composer
-    │  → ExperienceStop[] (ordered, scored, fallback_level assigned)
-    │  Logika: scoring → ranking → diversity filter → route sort
+[5] Experience Composer V2
+    │  → ExperienceStop[] (ordered, scored, decision_reasons[], fallback_reason)
+    │  Scoring: prompt_relevance + media_availability + scenic_value +
+    │            diversity_bonus + context_richness + similarity_penalty + combo_bonus
     │
     ▼
 [6] Narrator
@@ -46,6 +53,11 @@ Prompt (string)
     │
     ▼
 Experience (výsledný objekt)
+    └── generation_metadata.warnings[]          — agregovaná varování z celé pipeline
+    └── generation_metadata.decision_reasons[]  — klíčová rozhodnutí pipeline
+    └── generation_metadata.degradation_reason  — pokud pipeline degradovala
+    └── stops[].decision_reasons[]              — per-stop scoring reasons
+    └── stops[].fallback_reason                 — proč stop nemá média
 ```
 
 ## Quality Gates a degradační logika
@@ -98,6 +110,57 @@ narration context:
     → 0.25–0.50           → short factual note only ("OSM záznam: key=val.")
     → < 0.25              → bare note ("Lokalita na souřadnicích X. Bez dat.")
 ```
+
+## Pipeline Explainability
+
+Každý pipeline krok přispívá do `GenerationMetadata`, která je součástí finálního `Experience` objektu:
+
+```python
+class GenerationMetadata(BaseModel):
+    pipeline_steps: list[str]       # kroky, které proběhly
+    warnings: list[str]             # agregovaná varování ze všech kroků
+    decision_reasons: list[str]     # klíčová rozhodnutí (region selection, scoring)
+    degradation_reason: str | None  # hlavní důvod degradace, pokud nastala
+```
+
+Každý `ExperienceStop` nese:
+```python
+decision_reasons: list[str]   # scoring breakdown v lidsky čitelné formě
+fallback_reason: str | None   # proč stop nemá média nebo má low context
+```
+
+Cíl: u slabého výsledku musí být z těchto polí dohledatelné, ve kterém kroku pipeline nastalo selhání nebo degradace (intent / region / discovery / scoring / media / narration).
+
+## Scoring V2
+
+Bodové schéma rozšířeno o nové komponenty:
+
+| Komponenta | Popis | Rozsah |
+|---|---|---|
+| `prompt_relevance` | % témat z intent matchujících OSM tagy | 0.1–1.0 |
+| `media_availability` | Mapillary/Wikimedia pokrytí | 0.0–1.0 |
+| `scenic_value` | Atmosférická hodnota místa (tagy) | 0.0–1.0 |
+| `diversity_bonus` | Prostorová diverzita vs. vybraných stops | 0.0–1.0 |
+| `route_coherence` | Neutrální 0.5 (routing dosud neimplementován) | 0.5 |
+| `context_richness` | Počet smysluplných OSM tagů (normalizováno na 8) | 0.0–1.0 |
+| `similarity_penalty` | Srážka za podobný tag profil jako existující stop | 0.0–0.2 |
+| `combo_bonus` | Bonus: dobrá relevance + médium + kontext zároveň | 0.0–0.08 |
+
+`context_richness` ovlivňuje výsledné skóre jako soft modifier ±10%. `similarity_penalty` snižuje skóre pro příliš podobné kandidáty bez ohledu na vzdálenost.
+
+## OSM Query Presets (Place Discovery V2)
+
+Místo jednoho plochého seznamu filtrů má každý mód vícevrstvý preset:
+
+```python
+class ModePreset:
+    must_have: list[str]   # silné, mód-definující signály
+    strong: list[str]      # dobré kandidáty — jasně relevantní
+    weak: list[str]        # doplňkové / kontextuální kandidáty
+    blacklist: dict[str, list[str]]  # tagy = hluk pro tento mód
+```
+
+Každý vrácený `PlaceCandidate` nese `signal_strength` ("must_have" / "strong" / "weak") a `discovery_warnings` (chybějící name tag, řídké tagy).
 
 ### Job persistence
 
