@@ -1,7 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 
-from app.jobs.experience_job import create_job, get_experience_async, run_experience_job
+from app.jobs.experience_job import (
+    create_job,
+    get_experience_async,
+    list_job_ids,
+    run_experience_job,
+)
 from app.models.experience import Experience
 
 router = APIRouter(prefix="/experiences", tags=["experiences"])
@@ -14,6 +19,19 @@ class CreateExperienceRequest(BaseModel):
 class CreateExperienceResponse(BaseModel):
     job_id: str
     status: str
+
+
+class JobSummary(BaseModel):
+    job_id: str
+
+
+@router.get("", response_model=list[JobSummary])
+async def list_experiences(
+    limit: int = Query(default=20, le=100),
+) -> list[JobSummary]:
+    """List recent job IDs (newest first). Useful for debugging and monitoring."""
+    ids = await list_job_ids()
+    return [JobSummary(job_id=jid) for jid in ids[:limit]]
 
 
 @router.post("", response_model=CreateExperienceResponse, status_code=202)

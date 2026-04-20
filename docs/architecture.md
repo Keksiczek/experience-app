@@ -248,6 +248,10 @@ backend/
 ## API endpoints (první iterace)
 
 ```
+GET /experiences?limit=20
+    Response: [{ "job_id": string }, ...]
+    Vrátí seznam posledních job ID (newest first). Limit max 100.
+
 POST /experiences
     Body: { "prompt": string }
     Response: { "job_id": string, "status": "pending" }

@@ -1,26 +1,35 @@
 """Configure integration tests to run in mock mode with an isolated in-memory job store.
 
+Uses monkeypatch.setenv + importlib.reload so that Pydantic validation runs
+normally when settings are re-created — no bypassing of __setattr__.
+
 Every test gets:
-- settings.mock_mode = True  →  _execute_pipeline uses mock providers, no live HTTP
-- experience_job._store = fresh InMemoryJobStore()  →  test isolation, no DB files
+- MOCK_MODE=true in env → settings.mock_mode=True → mock providers used
+- experience_job.settings patched to the freshly-reloaded settings object
+- experience_job._store = fresh InMemoryJobStore() → test isolation, no DB files
 """
+
+import importlib
 
 import pytest
 
-from app.core.config import settings as _settings
-from app.jobs import experience_job
+import app.core.config as config_module
+import app.jobs.experience_job as ej
 from app.jobs.job_store import InMemoryJobStore
 
 
 @pytest.fixture(autouse=True)
-def _use_mock_mode():
-    orig_mock = _settings.mock_mode
-    orig_store = experience_job._store
+def use_mock_mode(monkeypatch):
+    # Set env vars before reloading so Pydantic validation picks them up.
+    monkeypatch.setenv("MOCK_MODE", "true")
+    monkeypatch.setenv("JOB_STORE_PATH", ":memory:")
 
-    object.__setattr__(_settings, "mock_mode", True)
-    experience_job._store = InMemoryJobStore()
+    # Reload creates a fresh Settings() that reads the patched env vars.
+    importlib.reload(config_module)
 
-    yield
+    # Patch experience_job's module-level settings reference to the new object
+    # so _execute_pipeline sees mock_mode=True at runtime.
+    monkeypatch.setattr(ej, "settings", config_module.settings)
 
-    object.__setattr__(_settings, "mock_mode", orig_mock)
-    experience_job._store = orig_store
+    # Fresh in-memory store per test — monkeypatch restores _store=None on teardown.
+    monkeypatch.setattr(ej, "_store", InMemoryJobStore())

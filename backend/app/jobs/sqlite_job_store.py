@@ -7,6 +7,7 @@ TTL eviction runs on every save() call and removes records older than
 settings.job_store_ttl_days (default: 7 days).
 """
 
+import asyncio
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -17,6 +18,9 @@ from app.jobs.job_store import BaseJobStore
 from app.models.experience import Experience
 
 logger = get_logger(__name__)
+
+# TODO: migrate to aiosqlite for true async I/O when request volume grows.
+# asyncio.to_thread() is sufficient for Iteration 1 workloads.
 
 
 class SQLiteJobStore(BaseJobStore):
@@ -39,7 +43,20 @@ class SQLiteJobStore(BaseJobStore):
             conn.commit()
         logger.info("sqlite_job_store_ready", path=self._db_path, ttl_days=self._ttl_days)
 
+    # ── async public interface ────────────────────────────────────────────────
+
     async def save(self, experience: Experience) -> None:
+        await asyncio.to_thread(self._save_sync, experience)
+
+    async def get(self, job_id: str) -> Experience | None:
+        return await asyncio.to_thread(self._get_sync, job_id)
+
+    async def list_ids(self) -> list[str]:
+        return await asyncio.to_thread(self._list_ids_sync)
+
+    # ── sync helpers (called via to_thread) ──────────────────────────────────
+
+    def _save_sync(self, experience: Experience) -> None:
         self._evict_old()
         data = experience.model_dump_json()
         now = datetime.now(UTC).isoformat()
@@ -50,7 +67,7 @@ class SQLiteJobStore(BaseJobStore):
             )
             conn.commit()
 
-    async def get(self, job_id: str) -> Experience | None:
+    def _get_sync(self, job_id: str) -> Experience | None:
         with sqlite3.connect(self._db_path) as conn:
             row = conn.execute(
                 "SELECT data FROM jobs WHERE job_id = ?", (job_id,)
@@ -59,9 +76,11 @@ class SQLiteJobStore(BaseJobStore):
             return None
         return Experience.model_validate_json(row[0])
 
-    async def list_ids(self) -> list[str]:
+    def _list_ids_sync(self) -> list[str]:
         with sqlite3.connect(self._db_path) as conn:
-            rows = conn.execute("SELECT job_id FROM jobs ORDER BY created_at DESC").fetchall()
+            rows = conn.execute(
+                "SELECT job_id FROM jobs ORDER BY created_at DESC"
+            ).fetchall()
         return [row[0] for row in rows]
 
     def _evict_old(self) -> None:

@@ -50,6 +50,10 @@ async def get_experience_async(job_id: str) -> Experience | None:
     return await _get_store().get(job_id)
 
 
+async def list_job_ids() -> list[str]:
+    return await _get_store().list_ids()
+
+
 async def create_job(prompt: str) -> Experience:
     job_id = str(uuid.uuid4())
     experience = Experience(id=job_id, prompt=prompt, job_status=JobStatus.PENDING)
