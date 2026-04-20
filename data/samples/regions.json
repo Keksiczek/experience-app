@@ -1,0 +1,40 @@
+{
+  "regions": [
+    {
+      "name": "Horní Slezsko",
+      "aliases": ["upper silesia", "silesia", "slezsko", "katowice", "poland industrial"],
+      "mode_hints": ["abandoned_industrial"],
+      "bbox": [50.1, 18.8, 50.5, 19.2]
+    },
+    {
+      "name": "Halle-Merseburg",
+      "aliases": ["halle", "merseburg", "saxony-anhalt", "germany industrial"],
+      "mode_hints": ["abandoned_industrial"],
+      "bbox": [51.3, 11.8, 51.6, 12.2]
+    },
+    {
+      "name": "Hardangervidda",
+      "aliases": ["hardanger", "norway plateau", "hardangervidda", "norsko"],
+      "mode_hints": ["remote_landscape"],
+      "bbox": [59.8, 7.0, 60.4, 8.0]
+    },
+    {
+      "name": "Stelvio Pass Area",
+      "aliases": ["stelvio", "passo dello stelvio", "alta valtellina", "italy alps"],
+      "mode_hints": ["scenic_roadtrip"],
+      "bbox": [46.3, 10.2, 46.7, 10.7]
+    },
+    {
+      "name": "Transylvanian Alps",
+      "aliases": ["transylvania", "fagaras", "retezat", "romania mountains", "rumunsko"],
+      "mode_hints": ["scenic_roadtrip"],
+      "bbox": [45.2, 24.5, 45.8, 25.5]
+    },
+    {
+      "name": "Ust-Urt Plateau",
+      "aliases": ["ustyurt", "ust-urt", "kazakhstan plateau", "kazachstan"],
+      "mode_hints": ["remote_landscape"],
+      "bbox": [42.0, 55.0, 43.5, 57.0]
+    }
+  ]
+}
