@@ -1,12 +1,18 @@
 # Implementační plán
 
+## Aktuální stav (k 20. 4. 2026)
+
+Iterace 1 je kompletně dokončena díky PR#1, PR#2 a aktuálním commitům. Pipeline funguje end-to-end pro mód `abandoned_industrial`, mock mode umožňuje lokální vývoj bez API klíčů a SQLiteJobStore zajišťuje perzistenci jobů napříč restarty.
+
+---
+
 ## Přístup
 
 Vývoj jde v iteracích, každá buduje na předchozí. Nová vrstva se přidává teprve když předchozí funguje a je otestovaná. Žádné half-finished features.
 
 ---
 
-## Iterace 1 — Funkční pipeline (spike)
+## Iterace 1 — Funkční pipeline (spike) ✅ HOTOVO
 
 **Trvání:** ~2–3 týdny sólový vývoj nebo 1 týden ve dvou
 
@@ -89,8 +95,17 @@ Pořadí je záměrné — každý krok je testovatelný samostatně.
     → GET /health → provider status
 
 17. Integrace a end-to-end test
-    → Scénář A (happy path, Slezsko)
-    → Scénář C (degradace, Kazachstán)
+    → Scénář A (happy path, Slezsko) ✅
+    → Scénář C (degradace, Kazachstán) ✅
+
+18. Mock mode (core/mock_mode.py) ✅
+    → MOCK_MODE=true spustí pipeline bez live API
+    → MockNominatim, MockOverpass, MockMapillary, MockWikimedia
+    → Sample data v data/samples/
+
+19. SQLiteJobStore (jobs/sqlite_job_store.py) ✅
+    → Perzistentní job store s TTL eviction
+    → Jobs dostupné po restartu serveru
 ```
 
 ---
@@ -142,14 +157,24 @@ Spike by měl trvat 2–4 hodiny a ušetří přepracování scoring logiky.
 Žádné Docker, žádné CI/CD v Iteraci 1. Jen:
 
 ```bash
-python -m venv .venv
+cd backend
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+cp ../.env.example ../.env   # upravit dle potřeby
 uvicorn app.main:app --reload
+```
+
+Pro lokální vývoj bez API klíčů:
+
+```bash
+MOCK_MODE=true uvicorn app.main:app --reload
 ```
 
 `.env` soubor pro lokální konfiguraci (gitignored):
 ```
 MAPILLARY_API_KEY=...
+MOCK_MODE=false
+JOB_STORE_PATH=./data/jobs.db
 CACHE_DIR=./data/caches
 LOG_LEVEL=DEBUG
 ```
@@ -160,8 +185,19 @@ LOG_LEVEL=DEBUG
 
 Kritéria pro konec Iterace 1:
 
-- [ ] End-to-end test pro scénář A projde bez live API (na sample datech)
-- [ ] End-to-end test pro scénář C projde bez pádu pipeline
-- [ ] Log z jednoho requestu je čitelný a debuggovatelný
-- [ ] Cache funguje — druhý request je > 5× rychlejší
-- [ ] Žádný stop neobsahuje halucinovaný text
+- [x] End-to-end test pro scénář A projde bez live API (na sample datech)
+- [x] End-to-end test pro scénář C projde bez pádu pipeline
+- [x] Log z jednoho requestu je čitelný a debuggovatelný
+- [x] Cache funguje — druhý request je > 5× rychlejší
+- [x] Žádný stop neobsahuje halucinovaný text
+
+---
+
+## Iterace 2 — focus oblasti
+
+Iterace 2 se zaměří na rozšíření pipeline na všechny 3 módy a zkvalitnění výstupu:
+
+- **Wikidata adapter** — obohacení kontextu míst o Wikidata entity (context_score). Adapter existuje v `providers/wikidata.py`, ale není zapojen do hlavní pipeline.
+- **Route coherence** — geografické seřazení stopů dle route_style (linear/loop/scattered). Aktuálně je `route_coherence` neutrální placeholder (0.5).
+- **Narrator LLM upgrade (příprava)** — `narration_confidence` je připraven jako vstupní signál. V Iteraci 2 se připraví interface pro LLM-assisted narration (Claude API), bez nasazení.
+- **All 3 modes** — rozšíření Overpass presets a end-to-end testy pro `scenic_roadtrip` a `remote_landscape`.

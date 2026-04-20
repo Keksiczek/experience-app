@@ -4,7 +4,7 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 
 ---
 
-## Iterace 0 — Projekt foundations (aktuální)
+## Iterace 0 — Projekt foundations
 
 **Cíl:** Repo je nachystané pro vývoj. Architektura a dokumentace jsou dostatečně jasné, aby mohl začít vývoj bez nutnosti velkých přepracování.
 
@@ -16,7 +16,7 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 | 0.4 | Zdokumentovat scoring logiku | docs | ✅ hotovo |
 | 0.5 | Zdokumentovat failure modes a quality gates | docs | ✅ hotovo |
 | 0.6 | Připravit backend kostru (FastAPI, modely, provider ABC) | backend | ✅ hotovo |
-| 0.7 | Připravit GitHub issues pro Iteraci 1 | management | ⏳ |
+| 0.7 | Připravit GitHub issues pro Iteraci 1 | management | ✅ hotovo |
 
 ---
 
@@ -31,21 +31,23 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 - Pipeline loguje každý krok strukturovaně
 - Cache funguje — druhý identický request je výrazně rychlejší
 
-| # | Úkol | Typ |
-|---|---|---|
-| 1.1 | Implementovat Intent Parser (keyword matching, 3 módy) | backend |
-| 1.2 | Implementovat Nominatim adapter + file cache | backend |
-| 1.3 | Implementovat Overpass adapter pro `abandoned_industrial` tagy | backend |
-| 1.4 | Implementovat Mapillary adapter (coverage score) | backend |
-| 1.5 | Implementovat Wikimedia Commons adapter (fallback) | backend |
-| 1.6 | Implementovat scoring engine (heuristický) | backend |
-| 1.7 | Implementovat Experience Composer (greedy selection, diversity) | backend |
-| 1.8 | Implementovat základní Narrator (template-based) | backend |
-| 1.9 | Implementovat background job orchestrator | backend |
-| 1.10 | Implementovat FastAPI routes (POST/GET experience) | backend |
-| 1.11 | Napsat integrační test pro scénář A (happy path, Slezsko) | test |
-| 1.12 | Napsat integrační test pro scénář C (degradace, Kazachstán) | test |
-| 1.13 | Nahrát vzorová data (mock responses) do data/samples/ | data |
+| # | Úkol | Typ | Stav |
+|---|---|---|---|
+| 1.1 | Implementovat Intent Parser (keyword matching, 3 módy) | backend | ✅ hotovo |
+| 1.2 | Implementovat Nominatim adapter + file cache | backend | ✅ hotovo |
+| 1.3 | Implementovat Overpass adapter pro `abandoned_industrial` tagy | backend | ✅ hotovo |
+| 1.4 | Implementovat Mapillary adapter (coverage score) | backend | ✅ hotovo |
+| 1.5 | Implementovat Wikimedia Commons adapter (fallback) | backend | ✅ hotovo |
+| 1.6 | Implementovat scoring engine (heuristický) | backend | ✅ hotovo |
+| 1.7 | Implementovat Experience Composer (greedy selection, diversity) | backend | ✅ hotovo |
+| 1.8 | Implementovat základní Narrator (template-based) | backend | ✅ hotovo |
+| 1.9 | Implementovat background job orchestrator | backend | ✅ hotovo |
+| 1.10 | Implementovat FastAPI routes (POST/GET experience) | backend | ✅ hotovo |
+| 1.11 | Napsat integrační test pro scénář A (happy path, Slezsko) | test | ✅ hotovo |
+| 1.12 | Napsat integrační test pro scénář C (degradace, Kazachstán) | test | ✅ hotovo |
+| 1.13 | Nahrát vzorová data (mock responses) do data/samples/ | data | ✅ hotovo |
+| 1.14 | Mock mode (`MOCK_MODE=true`) — pipeline bez live API | backend | ✅ hotovo |
+| 1.15 | SQLiteJobStore — perzistentní job store s TTL eviction | backend | ✅ hotovo |
 
 ---
 
@@ -64,6 +66,8 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 | 2.7 | Otestovat všechny testovací scénáře (A–E) | test |
 | 2.8 | Přidat `/health` endpoint s provider status | backend |
 | 2.9 | Zdokumentovat výstupní formát API | docs |
+| 2.10 | Wikidata adapter pro kontext míst (context_score) | backend |
+| 2.11 | Route coherence — geografické seřazení stopů dle route_style (linear/loop/scattered) | backend |
 
 ---
 
@@ -96,14 +100,14 @@ Tato stopa je oddělena, protože ovlivňuje architekturu více než jiné Itera
 
 **Rozhraní je připravené:** `BaseJobStore` ABC v `app/jobs/job_store.py` definuje kontrakt (`save`, `get`, `list_ids`). Swap je izolovaný do injection bodu v `app/main.py`.
 
-| # | Úkol | Typ |
-|---|---|---|
-| 3.P.1 | Implementovat `SQLiteJobStore` (zero-dependency persistent store) | backend |
-| 3.P.2 | Přidat TTL evikci starých jobů (default: 7 dní) | backend |
-| 3.P.3 | Přidat `execution_log: list[dict]` do `GenerationMetadata` pro per-step audit trail | backend |
-| 3.P.4 | Přidat `GET /experiences` endpoint pro listing s paginací | backend |
-| 3.P.5 | Dokumentovat migration path na Redis nebo Postgres pro produkci | docs |
-| 3.P.6 | Definovat resumability strategy: za jakých podmínek lze job retry-ovat bez duplicit | docs |
+| # | Úkol | Typ | Stav |
+|---|---|---|---|
+| 3.P.1 | Implementovat `SQLiteJobStore` (zero-dependency persistent store) | backend | ✅ hotovo |
+| 3.P.2 | Přidat TTL evikci starých jobů (default: 7 dní) | backend | ✅ hotovo |
+| 3.P.3 | Přidat `execution_log: list[dict]` do `GenerationMetadata` pro per-step audit trail | backend | |
+| 3.P.4 | Přidat `GET /experiences` endpoint pro listing s paginací | backend | |
+| 3.P.5 | Dokumentovat migration path na Redis nebo Postgres pro produkci | docs | |
+| 3.P.6 | Definovat resumability strategy: za jakých podmínek lze job retry-ovat bez duplicit | docs | |
 
 ---
 

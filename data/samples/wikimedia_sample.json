@@ -1,0 +1,16 @@
+{
+  "query": {
+    "geosearch": [
+      {
+        "title": "File:Huta Pokój budynek administracyjny Ruda Śląska.jpg",
+        "dist": 142.5,
+        "primary": ""
+      },
+      {
+        "title": "File:Kopalnia Wieczorek szyb Pułaski.jpg",
+        "dist": 320.0,
+        "primary": ""
+      }
+    ]
+  }
+}

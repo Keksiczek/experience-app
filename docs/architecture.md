@@ -164,13 +164,22 @@ Každý vrácený `PlaceCandidate` nese `signal_strength` ("must_have" / "strong
 
 ### Job persistence
 
-Aktuální implementace používá `InMemoryJobStore`. **Omezení:**
-- Jobs jsou ztraceny při restartu procesu
-- Není možné dotazovat stav z více workerů
-- Neexistuje audit trail ani resumability
-- Store roste bez limitu
+Výchozí implementace je `SQLiteJobStore` (`app/jobs/sqlite_job_store.py`). Jobs přežívají restart procesu a jsou dostupné přes `GET /experiences/{id}`. TTL evikce (default: 7 dní) odstraňuje staré záznamy při každém `save()`.
 
-Viz `app/jobs/job_store.py` pro `BaseJobStore` ABC a backlog položku **3.P.1** pro perzistentní implementaci.
+V mock mode (`MOCK_MODE=true`) se používá `InMemoryJobStore` — žádné DB soubory.
+
+Konfigurace:
+- `JOB_STORE_PATH` — cesta k SQLite souboru (default: `./data/jobs.db`)
+- `JOB_STORE_TTL_DAYS` — TTL v dnech (default: 7)
+
+### Mock mode
+
+Celá pipeline lze spustit bez live API nastavením `MOCK_MODE=true`. V tom případě:
+- `MockNominatimProvider` vrátí bbox pro Horní Slezsko z `data/samples/nominatim_silesia.json`
+- `MockOverpassProvider` vrátí abandonované průmyslové lokality z `data/samples/overpass_silesia_abandoned.json`
+- `MockMapillaryProvider` a `MockWikimediaProvider` vrátí statické odpovědi ze sample souborů
+
+Viz `app/core/mock_mode.py`.
 
 ## Datový tok a modely
 

@@ -10,6 +10,8 @@ Uživatel zadá volný text (např. „opuštěné průmyslové oblasti v Polsku
 
 Aplikace **nehalucinuje fakta**. Každá zastávka je podložená strukturovanými daty ze zdrojů jako OpenStreetMap, Wikidata nebo Mapillary. Pokud data chybí, aplikace to přizná a přejde na slabší, ale stále použitelný fallback.
 
+Pro lokální vývoj bez API klíčů použij **mock mode**: `MOCK_MODE=true` spustí celou pipeline na vzorových datech v `data/samples/` bez jediného live HTTP requestu.
+
 ## Architektura
 
 Pipeline je lineární a deterministická:
@@ -54,7 +56,15 @@ Aby byl prompt parser laditelný, první verze podporuje jen:
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+cp ../.env.example ../.env          # upravit dle potřeby (MAPILLARY_API_KEY aj.)
 uvicorn app.main:app --reload
+```
+
+**Lokální vývoj bez API klíčů** — mock mode (data z `data/samples/`, žádné live requesty):
+
+```bash
+MOCK_MODE=true uvicorn app.main:app --reload
+# POST /experiences {"prompt": "opuštěné průmyslové oblasti v Horním Slezsku"}
 ```
 
 ## Struktura repozitáře
