@@ -138,7 +138,7 @@ def _select_from_registry(intent: PromptIntent) -> list[RegionCandidate]:
     mode_value = intent.mode.value
     search_terms = [r.lower() for r in intent.preferred_regions]
 
-    scored: list[tuple[float, dict]] = []
+    scored: list[tuple[float, list[str], dict]] = []
 
     for entry in registry:
         score = 0.0
@@ -174,7 +174,7 @@ def _select_from_registry(intent: PromptIntent) -> list[RegionCandidate]:
         if limitations:
             reasons.append(f"{len(limitations)} known limitation(s)")
 
-        scored.append((score, entry))
+        scored.append((score, reasons, entry))
 
     if not scored:
         return []
@@ -182,19 +182,11 @@ def _select_from_registry(intent: PromptIntent) -> list[RegionCandidate]:
     scored.sort(key=lambda x: x[0], reverse=True)
 
     results: list[RegionCandidate] = []
-    for rank, (sc, entry) in enumerate(scored[:2]):
+    for rank, (sc, reasons, entry) in enumerate(scored[:2]):
         # Confidence: registry selection is inherently less certain than geocoding
         base_confidence = min(0.85, 0.5 + sc * 0.05) if sc > 3 else 0.4
-        reasons_list: list[str] = []
-        # Reconstruct reasons for this entry
-        for term in search_terms:
-            aliases = [a.lower() for a in entry.get("aliases", [])]
-            name_lower = entry.get("name", "").lower()
-            if term in name_lower or any(term in a for a in aliases):
-                reasons_list.append(f"alias match for prompt term '{term}'")
-        coverage = entry.get("expected_media_coverage", "unknown")
-        reasons_list.append(f"expected_media_coverage={coverage}")
-        reasons_list.append(f"registry rank {rank + 1}, score={sc:.1f}")
+        decision_reasons = list(reasons)
+        decision_reasons.append(f"registry rank {rank + 1}, score={sc:.1f}")
 
         bbox = entry.get("bbox", [0, 0, 0, 0])
         candidate = RegionCandidate(
@@ -210,7 +202,7 @@ def _select_from_registry(intent: PromptIntent) -> list[RegionCandidate]:
             supported_modes=entry.get("supported_modes", []),
             expected_media_coverage=entry.get("expected_media_coverage", "unknown"),
             known_limitations=entry.get("known_limitations", []),
-            decision_reasons=reasons_list,
+            decision_reasons=decision_reasons,
         )
         results.append(candidate)
         logger.info(

@@ -13,6 +13,7 @@ Design principles:
 """
 
 import re
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.intent import ExperienceMode, PromptIntent
 
@@ -214,8 +215,9 @@ _REGION_NAMES: list[str] = [
 
 _TIER_WEIGHTS = {"primary": 3.0, "secondary": 1.0, "vibe": 0.5}
 
-# Above this raw score difference, the leading mode is unambiguous
-_AMBIGUITY_THRESHOLD = 2.0
+# Ambiguity: flag when the gap is less than this fraction of the winning score.
+# Relative threshold prevents large-score prompts from always appearing ambiguous.
+_AMBIGUITY_RELATIVE_THRESHOLD = 0.3
 
 # Raw score normalisation cap — scores above this are all treated as 1.0
 _NORMALISATION_CAP = 6.0
@@ -274,9 +276,9 @@ def parse_intent(prompt: str) -> PromptIntent:
     best_mode, best_raw = sorted_modes[0]
     second_mode, second_raw = sorted_modes[1]
 
-    # Ambiguity check
+    # Ambiguity check — relative: flag when gap is < 30% of the winning score
     gap = best_raw - second_raw
-    if second_raw > 0 and gap < _AMBIGUITY_THRESHOLD:
+    if second_raw > 0 and gap < _AMBIGUITY_RELATIVE_THRESHOLD * best_raw:
         ambiguity_signals.append(
             f"close_scores: {best_mode.value}={best_raw:.1f} vs "
             f"{second_mode.value}={second_raw:.1f} (gap={gap:.1f})"
@@ -325,7 +327,12 @@ def parse_intent(prompt: str) -> PromptIntent:
     confidence = round(confidence, 2)
 
     # ── Region extraction ─────────────────────────────────────────────────
-    preferred_regions = [r for r in _REGION_NAMES if r.lower() in text.lower()]
+    # Word-boundary matching prevents "Island" matching inside "isolated" etc.
+    text_lower = text.lower()
+    preferred_regions = [
+        r for r in _REGION_NAMES
+        if re.search(r"\b" + re.escape(r.lower()) + r"\b", text_lower)
+    ]
     if not preferred_regions:
         warnings.append("no_region_detected")
         confidence_reasons.append("no region mentioned — pipeline will use registry-based fallback")
@@ -373,7 +380,7 @@ def parse_intent(prompt: str) -> PromptIntent:
         excluded_regions=[],
         settlement_density=settlement_density,
         route_style=route_style,
-        estimated_stops=5,
+        estimated_stops=settings.pipeline_stops_target,
         confidence=confidence,
         parse_warnings=warnings,
         confidence_reasons=confidence_reasons,

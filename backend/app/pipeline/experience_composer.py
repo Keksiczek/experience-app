@@ -123,6 +123,7 @@ def _build_stops(
                 score=place.final_score,
                 decision_reasons=decision_reasons,
                 fallback_reason=fallback_reason,
+                emergency_threshold_used=used_emergency_threshold,
             )
         )
     return stops

@@ -297,10 +297,7 @@ def _apply_quality_flags(
             f"({settings.pipeline_narration_weak_threshold})"
         )
 
-    emergency_stops = sum(
-        1 for s in stops
-        if any("emergency threshold" in r for r in s.decision_reasons)
-    )
+    emergency_stops = sum(1 for s in stops if s.emergency_threshold_used)
     if emergency_stops > 0:
         experience.quality_flags.append("emergency_threshold_used")
         metadata.warnings.append(

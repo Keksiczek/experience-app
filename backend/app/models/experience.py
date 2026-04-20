@@ -35,6 +35,7 @@ class ExperienceStop(BaseModel):
     # Per-stop explainability
     decision_reasons: list[str] = Field(default_factory=list)
     fallback_reason: str | None = None
+    emergency_threshold_used: bool = False
 
 
 class GenerationMetadata(BaseModel):
