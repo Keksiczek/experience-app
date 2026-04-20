@@ -37,15 +37,39 @@ class Settings(BaseSettings):
     cache_ttl_wikimedia: int = 86_400    # 24 hours
     cache_ttl_mapillary: int = 21_600    # 6 hours
 
-    # Pipeline thresholds
-    pipeline_min_places: int = 3
-    pipeline_ideal_places: int = 8
-    pipeline_score_threshold: float = 0.40
-    pipeline_score_threshold_emergency: float = 0.25
-    pipeline_min_diversity_km: float = 15.0
-    pipeline_max_diversity_km: float = 100.0
+    # ── Quality gates ─────────────────────────────────────────────────────────
+    #
+    # Place count gates
+    pipeline_min_places: int = 3        # ABORT if fewer than this survive scoring
+    pipeline_ideal_places: int = 8      # WARNING + shorter experience if fewer
+    #
+    # Experience length (stops selected by composer)
+    pipeline_stops_target: int = 6      # Ideal experience length
+    pipeline_stops_min: int = 3         # Minimum viable; below this = failed experience
+    #
+    # Scoring thresholds
+    pipeline_score_threshold: float = 0.40       # Normal threshold for stop inclusion
+    pipeline_score_threshold_emergency: float = 0.25  # Used when no stop reaches normal threshold;
+    #                                                    triggers quality_flag "emergency_threshold"
+    #
+    # Media quality gate
+    pipeline_media_low_threshold: float = 0.50   # Fraction of stops WITHOUT media above which
+    #                                               quality_flag "low_media" is set
+    #
+    # Narration quality gate
+    pipeline_narration_min_tags: int = 2         # Minimum meaningful OSM tags for a full narration;
+    #                                               below this → short factual note only
+    pipeline_narration_weak_threshold: float = 0.50  # narration_confidence below this = weak stop;
+    #                                                   quality_flag "partial_narration" if majority
+    #
+    # Diversity / route geometry
+    pipeline_min_diversity_km: float = 15.0      # Stops closer than this are penalised for diversity
+    pipeline_max_diversity_km: float = 100.0     # Beyond this, diversity bonus is capped (not linear)
+    #
+    # Provider search radii
     pipeline_mapillary_radius_m: int = 500
     pipeline_wikimedia_radius_m: int = 1000
+    # ─────────────────────────────────────────────────────────────────────────
 
     # Logging
     log_level: str = "INFO"

@@ -48,16 +48,66 @@ Prompt (string)
 Experience (výsledný objekt)
 ```
 
-## Quality Gates
+## Quality Gates a degradační logika
 
-| Gate | Podmínka | Akce při selhání |
-|---|---|---|
-| intent_valid | mode je jeden ze 3 podporovaných | 400, pipeline se nespustí |
-| region_found | alespoň 1 RegionCandidate | pipeline abort, error v job status |
-| min_places | ≥ 3 PlaceCandidates | pipeline abort |
-| ideal_places | ≥ 8 PlaceCandidates | warning, kratší experience |
-| media_partial | < 50% stops má média | experience.quality_flag = "low_media" |
-| narration_grounded | narrace neobsahuje informaci bez data source | validátor (budoucí iterace) |
+Každý gate má přesný threshold (konfigurabilní v `core/config.py`) a definované chování při překročení.
+
+### Tvrdé gates — pipeline se zastaví
+
+| Gate | Config klíč | Default | Akce při selhání |
+|---|---|---|---|
+| `intent_valid` | — | — | `400 Bad Request`, pipeline se nespustí |
+| `region_found` | — | — | `job_status = failed`, `error_code = no_region_found` |
+| `min_places` | `PIPELINE_MIN_PLACES` | 3 | `job_status = failed`, `error_code = too_few_places` |
+| `min_stops` | `PIPELINE_STOPS_MIN` | 3 | `job_status = failed`, `error_code = composer_no_stops` |
+
+### Měkké gates — pipeline pokračuje s degradací
+
+| Gate | Config klíč | Default | Při překročení |
+|---|---|---|---|
+| `ideal_places` | `PIPELINE_IDEAL_PLACES` | 8 | `estimated_stops` se sníží na `len(places) - 1` (zkrácená experience) |
+| `score_threshold` | `PIPELINE_SCORE_THRESHOLD` | 0.40 | Normální threshold pro zařazení stopu |
+| `score_threshold_emergency` | `PIPELINE_SCORE_THRESHOLD_EMERGENCY` | 0.25 | Použito když žádný stop nedosáhne normálního prahu → `quality_flag = emergency_threshold` |
+| `media_low` | `PIPELINE_MEDIA_LOW_THRESHOLD` | 0.50 | Pokud > 50 % stops nemá média → `quality_flag = low_media` |
+| `narration_weak` | `PIPELINE_NARRATION_WEAK_THRESHOLD` | 0.50 | `narration_confidence < 0.50` na majoritě stops → `quality_flag = partial_narration` |
+| `narration_min_tags` | `PIPELINE_NARRATION_MIN_TAGS` | 2 | Méně než 2 smysluplné tagy → krátká faktická poznámka místo šablony |
+
+### Degradační cesty — vizualizace
+
+```
+places >= 8 (ideal)
+    → target = PIPELINE_STOPS_TARGET (6)
+    → normální experience
+
+3 <= places < 8 (suboptimal)
+    → target = max(MIN_STOPS, places - 1)
+    → quality_flag = "few_places"
+    → experience bude kratší, ale platná
+
+places < 3
+    → ABORT
+
+scoring threshold:
+    → normální: >= 0.40 → stop zařazen
+    → emergency: 0.25–0.40 → stop zařazen + quality_flag = "emergency_threshold"
+    → pod 0.25 → stop zamítnut
+
+narration context:
+    → confidence >= 0.75  → full narration (tags + wikidata + name)
+    → 0.50–0.75           → partial narration (tags + name)
+    → 0.25–0.50           → short factual note only ("OSM záznam: key=val.")
+    → < 0.25              → bare note ("Lokalita na souřadnicích X. Bez dat.")
+```
+
+### Job persistence
+
+Aktuální implementace používá `InMemoryJobStore`. **Omezení:**
+- Jobs jsou ztraceny při restartu procesu
+- Není možné dotazovat stav z více workerů
+- Neexistuje audit trail ani resumability
+- Store roste bez limitu
+
+Viz `app/jobs/job_store.py` pro `BaseJobStore` ABC a backlog položku **3.P.1** pro perzistentní implementaci.
 
 ## Datový tok a modely
 
@@ -160,10 +210,38 @@ Formát: structured JSON (za použití `structlog`).
 
 ## Konfigurace
 
-Vše přes environment variables, defaulty v `core/config.py`:
-- `MAPILLARY_API_KEY`
-- `CACHE_DIR`
-- `CACHE_TTL_*` per provider
-- `PIPELINE_MIN_PLACES`
-- `PIPELINE_IDEAL_PLACES`
-- `LOG_LEVEL`
+Vše přes environment variables, defaulty v `core/config.py`. Kompletní soupis:
+
+```
+# API keys
+MAPILLARY_API_KEY
+
+# Cache
+CACHE_DIR
+CACHE_TTL_NOMINATIM   (default: 604800 = 7 dní)
+CACHE_TTL_OVERPASS    (default: 86400  = 24 h)
+CACHE_TTL_WIKIDATA    (default: 172800 = 48 h)
+CACHE_TTL_WIKIMEDIA   (default: 86400  = 24 h)
+CACHE_TTL_MAPILLARY   (default: 21600  = 6 h)
+
+# Quality gates
+PIPELINE_MIN_PLACES                  (default: 3)
+PIPELINE_IDEAL_PLACES                (default: 8)
+PIPELINE_STOPS_TARGET                (default: 6)
+PIPELINE_STOPS_MIN                   (default: 3)
+PIPELINE_SCORE_THRESHOLD             (default: 0.40)
+PIPELINE_SCORE_THRESHOLD_EMERGENCY   (default: 0.25)
+PIPELINE_MEDIA_LOW_THRESHOLD         (default: 0.50)
+PIPELINE_NARRATION_MIN_TAGS          (default: 2)
+PIPELINE_NARRATION_WEAK_THRESHOLD    (default: 0.50)
+
+# Route geometry
+PIPELINE_MIN_DIVERSITY_KM   (default: 15.0)
+PIPELINE_MAX_DIVERSITY_KM   (default: 100.0)
+
+# Provider radii
+PIPELINE_MAPILLARY_RADIUS_M   (default: 500)
+PIPELINE_WIKIMEDIA_RADIUS_M   (default: 1000)
+
+LOG_LEVEL   (default: INFO)
+```

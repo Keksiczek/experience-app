@@ -1,5 +1,24 @@
 # Datové zdroje
 
+## Provider operations — přehledová tabulka
+
+| Provider | Účel | Autentizace | Rate limit | Cache TTL | Retry strategie | Fallback role | Self-host možnost |
+|---|---|---|---|---|---|---|---|
+| **Nominatim** | Geocoding regionů | žádná | 1 req/s (striktní) | 7 dní | 1 s throttle, 3× retry s backoff | statické `regions.json` | ✅ openstreetmap/nominatim Docker image |
+| **Overpass** | Primární discovery míst z OSM | žádná | ~1 req/2 s, soft | 24 hodin | 3× retry (2s, 4s, 8s), jednodušší dotaz při timeout | — (tvrdý gate) | ✅ wiktorn/overpass-api Docker image |
+| **Mapillary** | Street-level imagery, coverage score | OAuth client token (`MAPILLARY_API_KEY`) | 50 000 req/den | 6 hodin | 3× retry s backoff | Wikimedia Commons | ❌ (komerční infrastruktura) |
+| **Wikimedia Commons** | Geotagované fotografie | žádná | ~10 req/s doporučeno | 24 hodin | 3× retry s backoff | NO_MEDIA | ✅ MediaWiki Docker image |
+| **Wikidata** | Kontextová metadata, popisy | žádná (User-Agent required) | 1 req/5 s anonymní | 48 hodin | 3× retry s backoff; timeout 60 s | context skipped, nižší context_score | ✅ Wikibase Docker image |
+
+### Poznámky k rate limitům
+
+- **Nominatim** má rate limit enforcovaný serverem — překročení vede k dočasnému banu IP. Throttle je implementovaný v `providers/nominatim.py` jako modul-level `_LAST_REQUEST_TIME`.
+- **Overpass** nemá striktní rate limit, ale zátěžové dotazy na velké bbox nebo komplexní tagy vedou k timeoutu. Doporučený `timeout=45` parametr v dotazu.
+- **Mapillary** 50 000/den = ~34 req/min. Při normálním provozu (1 request per stop per experience) není limit problém, ale je nutné monitorovat při testování.
+- **Wikidata** je anonymní limit 1 req/5 s velmi volný v praxi — doporučeno dodržovat a nastavit descriptivní `User-Agent`.
+
+---
+
 ## Přehled a fallback chain
 
 Každý provider je ohodnocen podle coverage, spolehlivosti a dostupnosti. Fallback chain je explicitní — pipeline vždy ví, z jakého zdroje pochází každý kus dat.

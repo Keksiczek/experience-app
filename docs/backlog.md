@@ -84,13 +84,36 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 
 ---
 
+## Iterace 3.P — Job persistence (samostatná stopa)
+
+Tato stopa je oddělena, protože ovlivňuje architekturu více než jiné Iterace 3 položky. Lze ji paralelizovat.
+
+**Kontext:** Aktuální `InMemoryJobStore` je záměrně dočasný. Omezení:
+- Jobs ztraceny při restartu nebo crashu procesu
+- Nelze škálovat na více worker procesů
+- Žádný audit trail — není možné rekonstruovat, co pipeline udělala
+- Store roste bez TTL nebo evikce
+
+**Rozhraní je připravené:** `BaseJobStore` ABC v `app/jobs/job_store.py` definuje kontrakt (`save`, `get`, `list_ids`). Swap je izolovaný do injection bodu v `app/main.py`.
+
+| # | Úkol | Typ |
+|---|---|---|
+| 3.P.1 | Implementovat `SQLiteJobStore` (zero-dependency persistent store) | backend |
+| 3.P.2 | Přidat TTL evikci starých jobů (default: 7 dní) | backend |
+| 3.P.3 | Přidat `execution_log: list[dict]` do `GenerationMetadata` pro per-step audit trail | backend |
+| 3.P.4 | Přidat `GET /experiences` endpoint pro listing s paginací | backend |
+| 3.P.5 | Dokumentovat migration path na Redis nebo Postgres pro produkci | docs |
+| 3.P.6 | Definovat resumability strategy: za jakých podmínek lze job retry-ovat bez duplicit | docs |
+
+---
+
 ## Backlog — budoucí iterace (nerozplánované)
 
 Tyto položky jsou zaznamenány, ale nepatří do prvních 3 iterací:
 
-- **Narrator upgrade:** LLM-assisted narration (Claude API) s grounding validací
+- **Narrator upgrade:** LLM-assisted narration (Claude API) s grounding validací — `narration_confidence` je připraven jako vstup pro grounding check
 - **Prompt upgrade:** LLM-assisted prompt parsing pro poetické/vágní prompty
-- **Redis cache:** Nahradit file cache Redisem
+- **Redis cache:** Nahradit file cache Redisem (interface připravený přes `BaseCache`)
 - **Frontend:** Mapový viewer pro Experience (MapLibre nebo Leaflet)
 - **MapillaryJS integration:** Inline street-level viewer místo statického URL
 - **User feedback:** Možnost označit stop jako irelevantní → zpětná vazba do scoringu
@@ -99,6 +122,7 @@ Tyto položky jsou zaznamenány, ale nepatří do prvních 3 iterací:
 - **API key management:** Rotace Mapillary klíčů, monitoring kvóty
 - **Self-hosted Nominatim:** Pro vyšší rate limity
 - **Penalizace turistických trap:** Downranking přeplněných turistických míst
+- **Metrics endpoint:** `GET /experiences/{id}/metrics` vrátí `ExperienceQualityMetrics` samostatně
 
 ---
 
