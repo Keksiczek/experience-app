@@ -32,6 +32,11 @@ class ExperienceStop(BaseModel):
     score: float = 0.0
     narration_confidence: float = 0.0   # 0.0 = bare coords only, 1.0 = rich context
 
+    # Per-stop explainability
+    decision_reasons: list[str] = Field(default_factory=list)
+    fallback_reason: str | None = None
+    emergency_threshold_used: bool = False
+
 
 class GenerationMetadata(BaseModel):
     started_at: datetime
@@ -40,6 +45,11 @@ class GenerationMetadata(BaseModel):
     provider_calls: dict[str, int] = Field(default_factory=dict)
     cache_hits: dict[str, int] = Field(default_factory=dict)
     total_candidates_evaluated: int = 0
+
+    # Pipeline explainability
+    warnings: list[str] = Field(default_factory=list)
+    decision_reasons: list[str] = Field(default_factory=list)
+    degradation_reason: str | None = None
 
 
 class ExperienceQualityMetrics(BaseModel):

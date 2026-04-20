@@ -69,8 +69,8 @@ class NarrationContext:
         has_wikidata = bool(self.wikidata_description)
         has_name = bool(self.name and self.name != f"OSM node {self.name}")
 
-        if tag_count == 0 and not has_name:
-            return 0.0
+        if tag_count == 0:
+            return 0.0   # bare: no OSM tags regardless of name
         if tag_count == 1 and not has_wikidata:
             return 0.25
         if tag_count <= 3 and not has_wikidata:

@@ -1,0 +1,224 @@
+# Smoke test fixtures for intent parser and basic pipeline sanity checks.
+#
+# Each fixture defines:
+#   prompt       — the raw user input
+#   expected_mode — the ExperienceMode value the parser must return
+#   min_confidence — minimum acceptable confidence (not a hard threshold,
+#                    but anything below signals a parser regression)
+#   expected_warnings_subset — warnings that MUST be present (empty = none required)
+#   forbidden_warnings — warnings that must NOT be present
+#   expected_regions_any — at least one of these STEM strings must be a substring
+#                          of any region in preferred_regions (case-insensitive).
+#                          Empty = not checked. Use stems to handle declined forms
+#                          ("norsk" matches "norsko"/"norsku"/"norských" etc.)
+#   expected_mood_any — at least one mood category expected. Empty = not checked.
+#   expected_terrain_any — at least one terrain category expected. Empty = not checked.
+#   notes — human-readable rationale for this fixture
+
+smoke_cases:
+
+  # ── SCENIC ROADTRIP ─────────────────────────────────────────────────────────
+
+  - id: sc_01_alpine_villages
+    prompt: "lonely alpine villages with dramatic mountain roads"
+    expected_mode: scenic_roadtrip
+    min_confidence: 0.35
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: [lonely, dramatic]
+    expected_terrain_any: [alpine]
+    notes: >
+      Combined prompt — mountain/alpine signals win scenic_roadtrip.
+      "lonely" is a vibe word that should NOT flip the mode to remote_landscape.
+
+  - id: sc_02_czech_passes
+    prompt: "drsná horská sedla s panoramatickým výhledem nad Alpami"
+    expected_mode: scenic_roadtrip
+    min_confidence: 0.50
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [alp]   # stem matches "Alpy", "Alpami", "Alps"
+    expected_mood_any: [raw]
+    expected_terrain_any: [alpine]
+    notes: >
+      Czech-language scenic roadtrip. 'sedla', 'výhledem', 'Alpami' are strong
+      signals. Region stem "alp" matches the "Alpami" instrumental form.
+
+  - id: sc_03_stelvio
+    prompt: "serpentine roads and high alpine passes in Stelvio area"
+    expected_mode: scenic_roadtrip
+    min_confidence: 0.50
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [Stelvio]
+    expected_mood_any: []
+    expected_terrain_any: [alpine]
+    notes: >
+      'serpentine', 'alpine passes' are primary signals.
+      Region 'Stelvio' must be extracted.
+
+  - id: sc_04_norway_fjords
+    prompt: "dramatic fjord roads with steep switchbacks in Norway"
+    expected_mode: scenic_roadtrip
+    min_confidence: 0.40
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [norw, norsk]   # stems: Norway / Norsko / Norsku
+    expected_mood_any: [dramatic]
+    expected_terrain_any: []
+    notes: >
+      'switchbacks' (primary), 'fjord roads' (secondary) win scenic_roadtrip.
+      'Norway' is a direct region match.
+
+  # ── REMOTE LANDSCAPE ────────────────────────────────────────────────────────
+
+  - id: rl_01_iceland_volcanic
+    prompt: "remote volcanic landscapes in Iceland with almost no settlements"
+    expected_mode: remote_landscape
+    min_confidence: 0.45
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [iceland, island]   # stems
+    expected_mood_any: []
+    expected_terrain_any: [volcanic]
+    notes: >
+      'remote', 'almost no settlements' are primary signals.
+      'volcanic' terrain must be extracted. settlement_density = sparse or none.
+
+  - id: rl_02_desert_roads
+    prompt: "remote desert roads with almost no settlements in the Southwestern US"
+    expected_mode: remote_landscape
+    min_confidence: 0.40
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [southwestern]   # stem matches "Southwestern US"
+    expected_mood_any: []
+    expected_terrain_any: [desert]
+    notes: >
+      'remote', 'almost no settlements', 'desert' are remote_landscape signals.
+      'Southwestern US' is in the region list — stem "southwestern" must match.
+
+  - id: rl_03_hardanger_plateau
+    prompt: "samota a divočina norských plošin bez lidí"
+    expected_mode: remote_landscape
+    min_confidence: 0.50
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [norsk]   # stem matches "norských" (genitive plural)
+    expected_mood_any: [lonely]
+    expected_terrain_any: []
+    notes: >
+      Czech: 'samota', 'divočina', 'bez lidí' are primary signals.
+      'norských' is a declined adjective form; stem 'norsk' must match.
+      settlement_density must be 'none'.
+
+  - id: rl_04_patagonia
+    prompt: "vast empty steppes and glaciers of Patagonia"
+    expected_mode: remote_landscape
+    min_confidence: 0.40
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [patagoni]   # stem matches Patagonia / Patagonie
+    expected_mood_any: [vast]
+    expected_terrain_any: []
+    notes: >
+      'vast', 'empty', 'glaciers' are remote_landscape signals.
+      'Patagonia' must be extracted.
+
+  # ── ABANDONED INDUSTRIAL ────────────────────────────────────────────────────
+
+  - id: ai_01_rail_infrastructure
+    prompt: "abandoned industrial sites and disused rail infrastructure"
+    expected_mode: abandoned_industrial
+    min_confidence: 0.50
+    expected_warnings_subset: [no_region_detected]
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: []
+    expected_terrain_any: []
+    notes: >
+      'abandoned industrial', 'disused rail infrastructure' are primary signals.
+      No region specified — no_region_detected warning expected.
+
+  - id: ai_02_silesia_polish
+    prompt: "opuštěné průmyslové oblasti s historií těžby uhlí v Polsku"
+    expected_mode: abandoned_industrial
+    min_confidence: 0.50
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [polsk]   # stem matches "Polsku", "Polsko", "Poland"
+    expected_mood_any: []
+    expected_terrain_any: []
+    notes: >
+      Czech: 'opuštěné průmyslové' are primary signals.
+      'Polsku' is locative form — stem 'polsk' must match.
+
+  - id: ai_03_ruhr_industrial
+    prompt: "forgotten rust belt factories and collieries in the Ruhr region"
+    expected_mode: abandoned_industrial
+    min_confidence: 0.35
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: [ruhr]
+    expected_mood_any: [forgotten]
+    expected_terrain_any: []
+    notes: >
+      'factories', 'collieries' are primary/secondary signals.
+      'forgotten' is a vibe signal. 'Ruhr' region must be extracted.
+
+  - id: ai_04_coastal_industrial
+    prompt: "abandoned industrial coastlines with crumbling harbour infrastructure"
+    expected_mode: abandoned_industrial
+    min_confidence: 0.35
+    expected_warnings_subset: []
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: []
+    expected_terrain_any: [coastal]
+    notes: >
+      'abandoned industrial', 'crumbling' are primary+vibe signals.
+      Coastal terrain must be captured.
+
+  # ── AMBIGUOUS / EDGE CASES ──────────────────────────────────────────────────
+
+  - id: edge_01_ambiguous_combined
+    prompt: "dramatic pass road with derelict infrastructure"
+    expected_mode: scenic_roadtrip
+    min_confidence: 0.20
+    expected_warnings_subset: [ambiguous_mode]
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: [dramatic]
+    expected_terrain_any: []
+    notes: >
+      Balanced signal prompt. scenic_roadtrip: 'pass road'(primary=3) + 'pass'(1)
+      + 'road'(1) + 'dramatic'(vibe=0.5) ≈ 5.5; abandoned_industrial: 'derelict'
+      (primary=3) + 'infrastructure'(1) = 4. Gap < 2.0 → ambiguous_mode flagged.
+      scenic_roadtrip wins the tiebreak.
+
+  - id: edge_02_vague_prompt
+    prompt: "výlet"
+    expected_mode: scenic_roadtrip   # doesn't matter — ValueError acceptable
+    min_confidence: 0.0
+    expected_warnings_subset: [too_vague]
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: []
+    expected_terrain_any: []
+    notes: >
+      Single Czech word. Parser should flag too_vague.
+      If it raises ValueError, that's also acceptable (captured in test).
+
+  - id: edge_03_no_region
+    prompt: "opuštěné továrny kdesi daleko"
+    expected_mode: abandoned_industrial
+    min_confidence: 0.20
+    expected_warnings_subset: [no_region_detected]
+    forbidden_warnings: []
+    expected_regions_any: []
+    expected_mood_any: []
+    expected_terrain_any: []
+    notes: >
+      Czech: 'opuštěné' + 'továrny' (neuter/plural forms) must now be in the
+      primary signal list. No region — no_region_detected warning required.

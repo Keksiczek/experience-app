@@ -2,13 +2,19 @@ from pydantic import BaseModel, Field
 
 
 class RegionCandidate(BaseModel):
+    region_id: str = ""
     name: str
     lat_min: float
     lon_min: float
     lat_max: float
     lon_max: float
-    source: str                    # "nominatim" | "static_fallback"
+    source: str                    # "nominatim" | "registry" | "static_fallback"
     confidence: float = Field(ge=0.0, le=1.0, default=1.0)
+    country: str = ""
+    supported_modes: list[str] = Field(default_factory=list)
+    expected_media_coverage: str = "unknown"   # "high" | "medium" | "low" | "unknown"
+    known_limitations: list[str] = Field(default_factory=list)
+    decision_reasons: list[str] = Field(default_factory=list)
 
 
 class ScoreBreakdown(BaseModel):
@@ -17,6 +23,10 @@ class ScoreBreakdown(BaseModel):
     scenic_value: float = 0.0
     diversity_bonus: float = 0.0
     route_coherence: float = 0.0
+    context_richness: float = 0.0
+    similarity_penalty: float = 0.0   # how much was deducted
+    combo_bonus: float = 0.0
+    decision_reasons: list[str] = Field(default_factory=list)
 
 
 class PlaceCandidate(BaseModel):
@@ -27,6 +37,10 @@ class PlaceCandidate(BaseModel):
     source_type: str               # "osm" | "wikidata"
     tags: dict[str, str] = Field(default_factory=dict)
     region_id: str = ""
+
+    # Signal tier from discovery (set by OSM provider)
+    signal_strength: str = "weak"  # "must_have" | "strong" | "weak"
+    discovery_warnings: list[str] = Field(default_factory=list)
 
     # Scores (populated after scoring step)
     prompt_relevance_score: float = 0.0

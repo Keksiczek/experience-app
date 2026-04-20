@@ -1,0 +1,367 @@
+regions:
+  # ── SCENIC ROADTRIP ────────────────────────────────────────────────────────
+
+  - region_id: alps_western
+    name: Western Alps
+    aliases:
+      - Alps
+      - Alpy
+      - western alps
+      - alpes
+      - alpen
+      - french alps
+      - italian alps
+      - swiss alps
+    country: France / Italy / Switzerland
+    bbox: [44.0, 6.0, 47.0, 10.0]
+    supported_modes:
+      - scenic_roadtrip
+      - remote_landscape
+    expected_media_coverage: high
+    known_limitations: []
+    notes: >
+      Major alpine passes (Col de l'Iseran, Col du Galibier, Gran San Bernardo).
+      Very high OSM and Mapillary coverage on mountain roads.
+
+  - region_id: alps_eastern
+    name: Eastern Alps
+    aliases:
+      - eastern alps
+      - austrian alps
+      - slovenian alps
+      - julian alps
+      - dolomites
+      - dolomiti
+    country: Austria / Italy / Slovenia
+    bbox: [46.0, 12.0, 48.0, 16.0]
+    supported_modes:
+      - scenic_roadtrip
+      - remote_landscape
+    expected_media_coverage: high
+    known_limitations: []
+    notes: >
+      Grossglockner Hochalpenstrasse, Stelvio Pass, Dolomites.
+      Excellent road coverage and Mapillary imagery.
+
+  - region_id: stelvio_pass
+    name: Stelvio Pass Area
+    aliases:
+      - stelvio
+      - passo dello stelvio
+      - alta valtellina
+      - italy alps
+      - stelvio pass
+    country: Italy
+    bbox: [46.3, 10.2, 46.7, 10.7]
+    supported_modes:
+      - scenic_roadtrip
+    expected_media_coverage: high
+    known_limitations: []
+    notes: >
+      One of the highest paved mountain passes in the Alps.
+      Tight bbox for precise OSM queries.
+
+  - region_id: transylvanian_alps
+    name: Transylvanian Alps
+    aliases:
+      - transylvania
+      - fagaras
+      - retezat
+      - romania mountains
+      - rumunsko
+      - carpathians
+      - karpaty
+      - romanian carpathians
+    country: Romania
+    bbox: [45.2, 24.5, 45.8, 25.5]
+    supported_modes:
+      - scenic_roadtrip
+      - remote_landscape
+    expected_media_coverage: medium
+    known_limitations:
+      - Mapillary coverage patchy on secondary roads
+    notes: >
+      Transfăgărășan Highway, Transalpina. Good summit coverage.
+      Some rural roads have limited Mapillary data.
+
+  - region_id: scottish_highlands
+    name: Scottish Highlands
+    aliases:
+      - highlands
+      - scotland
+      - scottish highlands
+      - cairngorms
+      - nc500
+      - north coast 500
+    country: United Kingdom
+    bbox: [56.5, -5.5, 58.7, -3.0]
+    supported_modes:
+      - scenic_roadtrip
+      - remote_landscape
+    expected_media_coverage: medium
+    known_limitations:
+      - Limited Overpass results for natural=peak in some areas — prefer natural=fell and natural=moor
+    notes: >
+      Single-track roads, dramatic moorland, loch scenery.
+      NC500 route well-covered by Mapillary.
+
+  - region_id: norway_fjords
+    name: Norway Fjord Country
+    aliases:
+      - fjords
+      - norway
+      - norsko
+      - fjord
+      - vestland
+      - sognefjord
+      - geiranger
+    country: Norway
+    bbox: [60.5, 5.0, 62.5, 8.5]
+    supported_modes:
+      - scenic_roadtrip
+      - remote_landscape
+    expected_media_coverage: medium
+    known_limitations:
+      - Many mountain roads seasonal (closed Nov–May)
+    notes: >
+      Trollstigen, Aurlandsfjellet, Gaularfjellet scenic routes.
+      Excellent dramatic road photography.
+
+  # ── REMOTE LANDSCAPE ───────────────────────────────────────────────────────
+
+  - region_id: iceland
+    name: Iceland
+    aliases:
+      - iceland
+      - island
+      - islande
+      - volcanic iceland
+      - iceland highlands
+      - landmannalaugar
+      - laugavegur
+    country: Iceland
+    bbox: [63.2, -24.5, 66.5, -13.0]
+    supported_modes:
+      - remote_landscape
+      - scenic_roadtrip
+    expected_media_coverage: medium
+    known_limitations:
+      - Interior highlands (F-roads) have minimal OSM POI density
+      - Mapillary coverage sparse north of Hofsjökull
+    notes: >
+      Volcanic terrain, glaciers, geothermal areas, lava fields.
+      Ring Road well-covered; highlands require careful bbox selection.
+
+  - region_id: hardangervidda
+    name: Hardangervidda
+    aliases:
+      - hardanger
+      - norway plateau
+      - hardangervidda
+      - norsko
+      - vidden
+    country: Norway
+    bbox: [59.8, 7.0, 60.4, 8.0]
+    supported_modes:
+      - remote_landscape
+    expected_media_coverage: low
+    known_limitations:
+      - Very sparse OSM POI data in plateau interior
+      - Mapillary coverage limited to road edges only
+    notes: >
+      Europe's largest mountain plateau. Expect few OSM results;
+      rely on natural=fell, natural=heath, natural=bare_rock.
+
+  - region_id: southwestern_us
+    name: Southwestern United States
+    aliases:
+      - southwest us
+      - southwestern us
+      - arizona
+      - utah
+      - nevada
+      - new mexico
+      - desert southwest
+      - canyon country
+      - colorado plateau
+      - four corners
+    country: USA
+    bbox: [31.0, -117.0, 37.0, -109.0]
+    supported_modes:
+      - remote_landscape
+      - scenic_roadtrip
+    expected_media_coverage: high
+    known_limitations: []
+    notes: >
+      Grand Canyon, Canyonlands, Monument Valley, Zion, Bryce Canyon.
+      Excellent OSM and Mapillary coverage on paved roads.
+      Remote areas well-mapped by NPS data contributions.
+
+  - region_id: ust_urt
+    name: Ust-Urt Plateau
+    aliases:
+      - ustyurt
+      - ust-urt
+      - kazakhstan plateau
+      - kazachstan
+      - kazakhstan
+    country: Kazakhstan / Uzbekistan
+    bbox: [42.0, 55.0, 43.5, 57.0]
+    supported_modes:
+      - remote_landscape
+    expected_media_coverage: low
+    known_limitations:
+      - Very low OSM coverage
+      - Near-zero Mapillary data
+      - Expect aggressive fallback to static data
+    notes: >
+      Extremely remote plateau. Pipeline will likely degrade to
+      NO_MEDIA for most stops. Use only if remote_landscape isolation is primary goal.
+
+  - region_id: atacama
+    name: Atacama Desert
+    aliases:
+      - atacama
+      - patagonie
+      - atacama desert
+      - altiplano
+      - chile desert
+    country: Chile
+    bbox: [-26.0, -70.0, -18.0, -67.5]
+    supported_modes:
+      - remote_landscape
+    expected_media_coverage: low
+    known_limitations:
+      - Sparse Mapillary on unpaved tracks
+      - OSM density low outside San Pedro de Atacama area
+    notes: >
+      Driest non-polar desert. Salt flats, volcanoes, geysers.
+      Route 23 and Paso Jama have reasonable OSM coverage.
+
+  - region_id: patagonia
+    name: Patagonia
+    aliases:
+      - patagonia
+      - patagonie
+      - torres del paine
+      - carretera austral
+      - southern patagonia
+    country: Chile / Argentina
+    bbox: [-53.0, -74.0, -40.0, -70.0]
+    supported_modes:
+      - remote_landscape
+      - scenic_roadtrip
+    expected_media_coverage: medium
+    known_limitations:
+      - Carretera Austral partially unpaved; Mapillary gaps
+    notes: >
+      Carretera Austral, Torres del Paine, Tierra del Fuego.
+      Dramatic fjords and glaciated terrain.
+
+  # ── ABANDONED INDUSTRIAL ───────────────────────────────────────────────────
+
+  - region_id: upper_silesia
+    name: Upper Silesia
+    aliases:
+      - horní slezsko
+      - upper silesia
+      - silesia
+      - slezsko
+      - katowice
+      - poland industrial
+      - silesian
+      - bytom
+      - zabrze
+      - gliwice
+    country: Poland
+    bbox: [50.1, 18.8, 50.5, 19.2]
+    supported_modes:
+      - abandoned_industrial
+    expected_media_coverage: medium
+    known_limitations:
+      - Active industrial sites mixed with abandoned ones — scoring blacklist important
+    notes: >
+      Dense post-mining industrial landscape. Coal mines, steel works,
+      brownfields. Some sites partially reclaimed; OSM tags vary.
+
+  - region_id: halle_merseburg
+    name: Halle-Merseburg
+    aliases:
+      - halle
+      - merseburg
+      - saxony-anhalt
+      - germany industrial
+      - halle merseburg
+      - bitterfeld
+      - chemical triangle
+    country: Germany
+    bbox: [51.3, 11.8, 51.6, 12.2]
+    supported_modes:
+      - abandoned_industrial
+    expected_media_coverage: medium
+    known_limitations:
+      - Some brownfields cleared and redeveloped — verify OSM tags
+    notes: >
+      Former East German chemical industry region. Leuna, Buna, Bitterfeld.
+      Mix of derelict and redeveloped industrial land.
+
+  - region_id: ruhr_valley
+    name: Ruhr Valley
+    aliases:
+      - ruhr
+      - ruhrgebiet
+      - ruhr area
+      - dortmund industrial
+      - essen industrial
+      - nrw industrial
+    country: Germany
+    bbox: [51.3, 6.7, 51.7, 7.8]
+    supported_modes:
+      - abandoned_industrial
+    expected_media_coverage: high
+    known_limitations:
+      - Heavy mix of active/abandoned — blacklist filtering critical
+    notes: >
+      Former coal and steel heartland. Zeche Zollverein (UNESCO), multiple
+      colliery museums. Good OSM and Mapillary coverage.
+
+  - region_id: donbass
+    name: Donbas Industrial Region
+    aliases:
+      - donbas
+      - donbass
+      - ukraine industrial
+      - donetsk
+      - luhansk
+    country: Ukraine
+    bbox: [47.5, 37.0, 49.5, 40.0]
+    supported_modes:
+      - abandoned_industrial
+    expected_media_coverage: low
+    known_limitations:
+      - Active conflict zone — OSM data may be outdated or incomplete
+      - Very low Mapillary coverage
+    notes: >
+      Post-Soviet industrial decline. Significant safety/access caveats.
+      Only viable for data-based exploration, not physical visits.
+
+  - region_id: north_bohemia
+    name: North Bohemia
+    aliases:
+      - north bohemia
+      - severní čechy
+      - chomutov
+      - most
+      - ústí nad labem
+      - sudetenland
+      - brown coal
+    country: Czech Republic
+    bbox: [50.4, 13.2, 50.8, 14.2]
+    supported_modes:
+      - abandoned_industrial
+    expected_media_coverage: medium
+    known_limitations:
+      - Open-pit mining areas may have limited trackable POIs
+    notes: >
+      Brown coal mining region. Former Sudetenland — mix of demolished
+      villages, open-pit mines, and industrial remnants.
