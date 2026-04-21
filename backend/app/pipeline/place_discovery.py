@@ -1,14 +1,22 @@
 """Place Discovery: wraps the Overpass provider and adds pipeline-level
 quality gates, deduplication, and explicit discovery warnings.
+
+After place discovery, Wikidata context is fetched concurrently for all
+candidates (max 5 at a time) and stored on each PlaceCandidate.wikidata.
 """
+
+import asyncio
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.intent import PromptIntent
 from app.models.place import PlaceCandidate, RegionCandidate
 from app.providers.osm import OverpassProvider
+from app.providers.wikidata import WikidataProvider
 
 logger = get_logger(__name__)
+
+_WIKIDATA_CONCURRENCY = 5
 
 
 class TooFewPlacesError(Exception):
@@ -23,10 +31,13 @@ async def discover_places(
     intent: PromptIntent,
     regions: list[RegionCandidate],
     overpass: OverpassProvider,
+    wikidata: WikidataProvider | None = None,
 ) -> tuple[list[PlaceCandidate], list[str]]:
     """Return (places, discovery_warnings).
 
     Raises TooFewPlacesError if the hard minimum is not met.
+    If wikidata provider is supplied, enriches all candidates concurrently
+    (max _WIKIDATA_CONCURRENCY simultaneous requests).
     """
     all_places: list[PlaceCandidate] = []
     discovery_warnings: list[str] = []
@@ -102,4 +113,31 @@ async def discover_places(
             ideal=settings.pipeline_ideal_places,
         )
 
+    # Wikidata enrichment — concurrent, bounded by semaphore
+    if wikidata is not None and unique:
+        await _enrich_with_wikidata(unique, wikidata)
+        wikidata_count = sum(1 for p in unique if p.wikidata is not None)
+        logger.info(
+            "wikidata_enrichment_complete",
+            enriched=wikidata_count,
+            total=len(unique),
+        )
+
     return unique, discovery_warnings
+
+
+async def _enrich_with_wikidata(
+    places: list[PlaceCandidate],
+    wikidata: WikidataProvider,
+) -> None:
+    sem = asyncio.Semaphore(_WIKIDATA_CONCURRENCY)
+
+    async def enrich(place: PlaceCandidate) -> None:
+        async with sem:
+            ctx = await wikidata.fetch_context_for_place(
+                place.id, place.lat, place.lon, place.name
+            )
+            if ctx is not None:
+                place.wikidata = ctx
+
+    await asyncio.gather(*[enrich(p) for p in places])

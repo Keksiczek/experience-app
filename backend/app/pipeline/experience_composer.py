@@ -1,9 +1,11 @@
-"""Experience Composer: greedy stop selection with diversity-aware rescoring.
+"""Experience Composer: greedy stop selection with diversity-aware rescoring,
+followed by geographic ordering via _order_stops.
 
 Each selected stop carries decision_reasons and (where applicable) fallback_reason
 so poor outputs can be traced back to their root cause.
 """
 
+import math
 import uuid
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -61,8 +63,72 @@ def compose_experience(
         return []
 
     stops = _build_stops(selected, media_map, threshold_lowered)
-    logger.info("composer_done", stops=len(stops), threshold_used=threshold)
+    stops = _order_stops(stops, intent.route_style)
+    logger.info(
+        "composer_done",
+        stops=len(stops),
+        threshold_used=threshold,
+        route_style=intent.route_style,
+    )
     return stops
+
+
+def _order_stops(
+    stops: list[ExperienceStop],
+    route_style: str,
+) -> list[ExperienceStop]:
+    """Re-order stops for geographic coherence based on route_style.
+
+    linear   — sort along the axis of greatest spread (W→E or S→N)
+    loop     — nearest-neighbor starting from westernmost point
+    scattered — preserve original greedy-selection order
+    """
+    if len(stops) <= 1:
+        for i, s in enumerate(stops):
+            s.stop_order = i
+        return stops
+
+    if route_style == "linear":
+        lats = [s.lat for s in stops]
+        lons = [s.lon for s in stops]
+        lat_spread = max(lats) - min(lats)
+        lon_spread = max(lons) - min(lons)
+        if lon_spread > lat_spread:
+            ordered = sorted(stops, key=lambda s: s.lon)   # west → east
+        else:
+            ordered = sorted(stops, key=lambda s: s.lat)   # south → north
+
+    elif route_style == "loop":
+        ordered = _nearest_neighbor_loop(stops)
+
+    else:  # "scattered" or unknown
+        ordered = list(stops)
+
+    for i, stop in enumerate(ordered):
+        stop.stop_order = i
+
+    return ordered
+
+
+def _nearest_neighbor_loop(stops: list[ExperienceStop]) -> list[ExperienceStop]:
+    """Nearest-neighbor Hamiltonian path starting from the westernmost stop.
+    Pure stdlib math — no numpy.
+    """
+    def _dist2(a: ExperienceStop, b: ExperienceStop) -> float:
+        dlat = a.lat - b.lat
+        dlon = a.lon - b.lon
+        return dlat * dlat + dlon * dlon
+
+    remaining = sorted(stops, key=lambda s: s.lon)  # westernmost first
+    ordered: list[ExperienceStop] = [remaining.pop(0)]
+
+    while remaining:
+        current = ordered[-1]
+        nearest = min(remaining, key=lambda s: _dist2(current, s))
+        ordered.append(nearest)
+        remaining.remove(nearest)
+
+    return ordered
 
 
 def _build_stops(
@@ -100,7 +166,7 @@ def _build_stops(
         # Signal-strength note
         if place.signal_strength == "weak":
             decision_reasons.append(
-                f"weak OSM signal — place matched only low-priority tags"
+                "weak OSM signal — place matched only low-priority tags"
             )
         if place.discovery_warnings:
             decision_reasons.extend(
@@ -111,6 +177,7 @@ def _build_stops(
             ExperienceStop(
                 id=str(uuid.uuid4()),
                 order=order,
+                stop_order=order - 1,   # will be overwritten by _order_stops
                 place_id=place.id,
                 media_id=media.id if media else None,
                 lat=place.lat,

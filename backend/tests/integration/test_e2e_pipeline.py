@@ -1,10 +1,11 @@
 """End-to-end integration tests for the experience pipeline.
 
-Both tests run in mock mode (no live HTTP requests). The conftest.py
+All tests run in mock mode (no live HTTP requests). The conftest.py
 autouse fixture sets MOCK_MODE=true and provides an isolated InMemoryJobStore.
 
 Test A  — happy path: Horní Slezsko, abandoned_industrial
 Test C  — degradation: Kazakhstan, remote_landscape (too few places → graceful fail)
+Test D  — GET /experiences listing: submit 2 jobs, verify both appear in summary list
 """
 
 import asyncio
@@ -113,3 +114,53 @@ async def test_degradation_kazakhstan():
                 f"If pipeline succeeds for Kazakhstan it must have ≥2 stops, "
                 f"got {len(data['stops'])}"
             )
+
+
+@pytest.mark.asyncio
+async def test_list_experiences():
+    """Test D — GET /experiences returns ExperienceSummary for submitted jobs.
+
+    Submits 2 jobs, waits for both to reach a terminal state, then asserts
+    both appear in the listing with correct structure.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        # 1. Submit 2 jobs (same mock data, different prompts are fine)
+        prompts = [
+            "opuštěné průmyslové oblasti v Horním Slezsku",
+            "průmyslové ruiny Slezsko",
+        ]
+        job_ids: list[str] = []
+        for prompt in prompts:
+            resp = await client.post("/experiences", json={"prompt": prompt})
+            assert resp.status_code == 202, f"Expected 202, got {resp.status_code}"
+            job_ids.append(resp.json()["job_id"])
+
+        # 2. Wait for both to reach a terminal state
+        for job_id in job_ids:
+            await _wait_for_completion(client, job_id)
+
+        # 3. GET /experiences listing
+        resp = await client.get("/experiences?limit=10")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        items = resp.json()
+
+        assert isinstance(items, list), "Response must be a list"
+        assert len(items) >= 2, f"Expected ≥2 items, got {len(items)}"
+
+        # Both submitted jobs must appear in the listing
+        listed_ids = {item["job_id"] for item in items}
+        for jid in job_ids:
+            assert jid in listed_ids, f"Job {jid!r} missing from listing"
+
+        # Every summary must have the required fields with correct types
+        valid_statuses = {s.value for s in JobStatus}
+        for item in items:
+            assert item["job_id"], "job_id must be non-empty"
+            assert item["job_status"] in valid_statuses, (
+                f"Invalid job_status: {item['job_status']!r}"
+            )
+            assert isinstance(item["prompt"], str) and item["prompt"], "prompt must be non-empty str"
+            assert isinstance(item["stop_count"], int), "stop_count must be int"
+            assert isinstance(item["quality_flags"], list), "quality_flags must be list"

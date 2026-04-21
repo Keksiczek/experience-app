@@ -7,7 +7,7 @@ from app.jobs.experience_job import (
     list_job_ids,
     run_experience_job,
 )
-from app.models.experience import Experience
+from app.models.experience import Experience, ExperienceSummary
 
 router = APIRouter(prefix="/experiences", tags=["experiences"])
 
@@ -21,17 +21,18 @@ class CreateExperienceResponse(BaseModel):
     status: str
 
 
-class JobSummary(BaseModel):
-    job_id: str
-
-
-@router.get("", response_model=list[JobSummary])
+@router.get("", response_model=list[ExperienceSummary])
 async def list_experiences(
-    limit: int = Query(default=20, le=100),
-) -> list[JobSummary]:
-    """List recent job IDs (newest first). Useful for debugging and monitoring."""
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[ExperienceSummary]:
+    """List recent experiences (newest first) as lightweight summaries."""
     ids = await list_job_ids()
-    return [JobSummary(job_id=jid) for jid in ids[:limit]]
+    summaries: list[ExperienceSummary] = []
+    for job_id in ids[:limit]:
+        exp = await get_experience_async(job_id)
+        if exp is not None:
+            summaries.append(ExperienceSummary.from_experience(exp))
+    return summaries
 
 
 @router.post("", response_model=CreateExperienceResponse, status_code=202)

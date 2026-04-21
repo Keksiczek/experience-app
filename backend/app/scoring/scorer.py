@@ -264,6 +264,32 @@ def _similarity_penalty(
     return round(penalty, 4), [f"tag similarity={max_similarity:.2f} to selected stop → -{penalty:.2f}"]
 
 
+def _wikidata_context_score(place: PlaceCandidate) -> tuple[float, list[str]]:
+    """Bonus from Wikidata enrichment: heritage status, tourism popularity, description.
+
+    Cap: +0.20 total. Applied to final_score with weight 0.15.
+    """
+    if place.wikidata is None:
+        return 0.0, []
+
+    bonus = 0.0
+    reasons: list[str] = []
+    wd = place.wikidata
+
+    if wd.heritage_status is not None:
+        bonus += 0.15
+        reasons.append(f"wikidata heritage_status={wd.heritage_status!r} → +0.15")
+    if wd.tourism_score > 0.5:
+        bonus += 0.10
+        reasons.append(f"wikidata tourism_score={wd.tourism_score:.2f} > 0.5 → +0.10")
+    if wd.description:
+        bonus += 0.05
+        reasons.append("wikidata description present → +0.05")
+
+    bonus = min(0.20, bonus)
+    return bonus, reasons
+
+
 def _combo_bonus(pr: float, ma: float, cr: float) -> tuple[float, list[str]]:
     """Bonus when relevance + media + context are all above 0.5."""
     if pr >= 0.5 and ma >= 0.3 and cr >= 0.375:
@@ -293,6 +319,7 @@ def score_place(
     cr, cr_reasons = _context_richness(place)
     sp, sp_reasons = _similarity_penalty(place, already_selected)
     cb, cb_reasons = _combo_bonus(pr, ma, cr)
+    wcs, wcs_reasons = _wikidata_context_score(place)
     rc = 0.5  # route_coherence is neutral until routing is implemented
 
     # Weighted base score
@@ -307,12 +334,16 @@ def score_place(
     # Apply context richness as a soft modifier (±10%)
     # Low context → slight downward pressure; high context → slight boost
     context_modifier = (cr - 0.5) * 0.10
-    final = base + context_modifier - sp + cb
+
+    # Wikidata context bonus applied with weight 0.15 (capped at 0.20 before weighting)
+    wikidata_contribution = 0.15 * wcs
+
+    final = base + context_modifier - sp + cb + wikidata_contribution
     final = max(0.0, min(1.0, round(final, 4)))
 
     decision_reasons = (
         pr_reasons + ma_reasons + sv_reasons + db_reasons
-        + cr_reasons + sp_reasons + cb_reasons
+        + cr_reasons + sp_reasons + cb_reasons + wcs_reasons
     )
 
     place.prompt_relevance_score = pr
@@ -326,6 +357,7 @@ def score_place(
         diversity_bonus=round(db, 4),
         route_coherence=round(rc, 4),
         context_richness=round(cr, 4),
+        context_score=round(wcs, 4),
         similarity_penalty=round(sp, 4),
         combo_bonus=round(cb, 4),
         decision_reasons=decision_reasons,
