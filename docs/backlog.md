@@ -115,7 +115,7 @@ Tato stopa je oddělena, protože ovlivňuje architekturu více než jiné Itera
 
 Tyto položky jsou zaznamenány, ale nepatří do prvních 3 iterací:
 
-- **Narrator upgrade:** LLM-assisted narration (Claude API) s grounding validací — `narration_confidence` je připraven jako vstup pro grounding check
+- **Narrator upgrade:** LLM-assisted narration via local Ollama (phi3.5/mistral) s grounding validací a template fallback — ✅ hotovo (Iterace 2, `OllamaNarratorProvider`)
 - **Prompt upgrade:** LLM-assisted prompt parsing pro poetické/vágní prompty
 - **Redis cache:** Nahradit file cache Redisem (interface připravený přes `BaseCache`)
 - **Frontend:** Mapový viewer pro Experience (MapLibre nebo Leaflet)

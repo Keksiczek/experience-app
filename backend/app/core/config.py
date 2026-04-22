@@ -71,6 +71,16 @@ class Settings(BaseSettings):
     pipeline_wikimedia_radius_m: int = 1000
     # ─────────────────────────────────────────────────────────────────────────
 
+    # ── Ollama LLM narration (optional) ──────────────────────────────────────
+    #
+    # Opt-in: set OLLAMA_ENABLED=true after installing Ollama and pulling a model.
+    # See README for setup instructions. Pipeline degrades gracefully if unavailable.
+    ollama_enabled: bool = False
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "phi3.5"
+    ollama_timeout_seconds: float = 30.0
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Mock mode — runs pipeline on sample data without any live API calls
     mock_mode: bool = False
 

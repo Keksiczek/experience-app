@@ -57,17 +57,35 @@ Prompt (string)
     │  stop_order field set on each ExperienceStop after ordering
     │
     ▼
-[6] Narrator
+[6] Narrator (Iteration 2: LLM-assisted via Ollama)
     │  → narration pro každý stop, summary pro celou experience
     │  Pravidlo: narrace smí obsahovat jen fakta z dat předchozích kroků
+    │
+    ├─► [6a] OllamaNarratorProvider (opt-in, OLLAMA_ENABLED=true)
+    │       Model: phi3.5 nebo mistral přes lokální Ollama daemon
+    │       Endpoint: POST /api/generate s format="json" (Ollama JSON mode)
+    │       Grounding: system prompt zakazuje halucinaci — pouze fakta z vstupu
+    │       Fallback threshold: confidence < 0.4 → template narrator
+    │       Cache TTL: 30 dní (hash place_id + mode + prompt[:50])
+    │       Selhání: OllamaNarratorProvider nikdy nevyhodí výjimku
+    │
+    ├─► [6b] Template Narrator (fallback, vždy dostupný)
+    │       Stavba why_here a narration z OSM tagů a Wikidata kontextu
+    │       Confidence je objektivní metrika (počet tagů, Wikidata dostupnost)
     │
     ▼
 Experience (výsledný objekt)
     └── generation_metadata.warnings[]          — agregovaná varování z celé pipeline
     └── generation_metadata.decision_reasons[]  — klíčová rozhodnutí pipeline
     └── generation_metadata.degradation_reason  — pokud pipeline degradovala
+    └── generation_metadata.llm_narration_used  — True pokud aspoň jeden stop použil LLM
+    └── generation_metadata.llm_narration_model — název modelu (phi3.5 / mistral / None)
+    └── generation_metadata.llm_fallback_count  — počet stopů kde LLM selhal → template
     └── stops[].decision_reasons[]              — per-stop scoring reasons
     └── stops[].fallback_reason                 — proč stop nemá média
+    └── stops[].used_llm_narration              — True pokud stop použil LLM naraci
+    └── stops[].grounding_sources               — zdroje použité LLM (osm_tags, wikidata_description, …)
+    └── stops[].llm_fallback_reason             — proč LLM selhal (low_confidence / ollama_error: …)
 ```
 
 ## Quality Gates a degradační logika

@@ -22,6 +22,7 @@ from app.pipeline.place_discovery import TooFewPlacesError, discover_places
 from app.pipeline.region_discovery import discover_regions
 from app.providers.mapillary import MapillaryProvider
 from app.providers.nominatim import NominatimProvider
+from app.providers.ollama_narrator import OllamaNarratorProvider
 from app.providers.osm import OverpassProvider
 from app.providers.wikimedia import WikimediaProvider
 from app.providers.wikidata import WikidataProvider
@@ -96,6 +97,17 @@ async def _execute_pipeline(experience: Experience) -> None:
         mapillary = MapillaryProvider(cache)
         wikimedia = WikimediaProvider(cache)
         wikidata = WikidataProvider(cache)
+
+    ollama_narrator: OllamaNarratorProvider | None = None
+    if settings.ollama_enabled:
+        ollama_narrator = OllamaNarratorProvider(
+            cache=cache,
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model,
+        )
+        if not await ollama_narrator.health_check():
+            logger.warning("ollama_unavailable", model=settings.ollama_model)
+            ollama_narrator = None  # silent degradation to template narrator
 
     metadata = GenerationMetadata(started_at=started_at)
 
@@ -247,8 +259,16 @@ async def _execute_pipeline(experience: Experience) -> None:
         # ── [6] Narration ────────────────────────────────────────────────────
         logger.info("pipeline_step", step="narrator", job_id=experience.id)
         place_map = {p.id: p for p in places}
-        stops = narrate_stops(stops, place_map, intent)
+        stops = await narrate_stops(stops, place_map, intent, ollama=ollama_narrator)
         summary = compose_summary(stops, intent)
+
+        llm_used_stops = [s for s in stops if s.used_llm_narration]
+        if llm_used_stops:
+            metadata.llm_narration_used = True
+            metadata.llm_narration_model = settings.ollama_model
+        metadata.llm_fallback_count = sum(
+            1 for s in stops if s.llm_fallback_reason is not None
+        )
         metadata.pipeline_steps.append("narrator")
 
         # Quality flags and metrics

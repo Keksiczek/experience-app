@@ -1,9 +1,16 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 from app.core.logging import get_logger
 from app.models.experience import ExperienceStop
 from app.models.intent import ExperienceMode, PromptIntent
 from app.models.media import FallbackLevel
 from app.models.place import PlaceCandidate
+
+if TYPE_CHECKING:
+    from app.providers.ollama_narrator import OllamaNarratorProvider
 
 logger = get_logger(__name__)
 
@@ -143,11 +150,12 @@ def _build_narration(ctx: NarrationContext) -> str:
     return " ".join(parts)
 
 
-def narrate_stops(
+async def narrate_stops(
     stops: list[ExperienceStop],
     place_map: dict[str, PlaceCandidate],
     intent: PromptIntent,
     wikidata_map: dict[str, dict[str, str]] | None = None,
+    ollama: OllamaNarratorProvider | None = None,
 ) -> list[ExperienceStop]:
     wikidata_map = wikidata_map or {}
     weak_narration_count = 0
@@ -174,20 +182,36 @@ def narrate_stops(
             wikidata_desc = wd.get("description", "")
             wikidata_label = wd.get("label", "")
 
-        ctx = NarrationContext(
-            name=stop.name,
-            tags=place.tags if place else {},
-            fallback_level=stop.fallback_level,
-            wikidata_label=wikidata_label,
-            wikidata_description=wikidata_desc,
-            heritage_status=heritage_status,
-        )
+        # ── Try LLM narration first ──────────────────────────────────────────
+        llm_result = None
+        if ollama is not None and place is not None:
+            llm_result = await ollama.narrate_stop(stop, place, intent)
 
-        stop.why_here = _build_why_here(ctx, intent.mode)
-        stop.narration = _build_narration(ctx)
-        stop.narration_confidence = ctx.confidence
+        if llm_result is not None and llm_result.used_llm and llm_result.confidence >= 0.4:
+            stop.why_here = llm_result.why_here
+            stop.narration = llm_result.narration
+            stop.narration_confidence = llm_result.confidence
+            stop.grounding_sources = llm_result.sources_used
+            stop.used_llm_narration = True
+            stop.llm_fallback_reason = None
+        else:
+            # ── Template narrator fallback ───────────────────────────────────
+            ctx = NarrationContext(
+                name=stop.name,
+                tags=place.tags if place else {},
+                fallback_level=stop.fallback_level,
+                wikidata_label=wikidata_label,
+                wikidata_description=wikidata_desc,
+                heritage_status=heritage_status,
+            )
+            stop.why_here = _build_why_here(ctx, intent.mode)
+            stop.narration = _build_narration(ctx)
+            stop.narration_confidence = ctx.confidence
+            stop.used_llm_narration = False
+            if llm_result is not None:
+                stop.llm_fallback_reason = llm_result.fallback_reason
 
-        if ctx.confidence < 0.50:
+        if stop.narration_confidence < 0.50:
             weak_narration_count += 1
 
     if weak_narration_count > 0:
@@ -197,7 +221,13 @@ def narrate_stops(
             total=len(stops),
         )
 
-    logger.info("narration_complete", stops=len(stops), weak=weak_narration_count)
+    llm_used_count = sum(1 for s in stops if s.used_llm_narration)
+    logger.info(
+        "narration_complete",
+        stops=len(stops),
+        weak=weak_narration_count,
+        llm_used=llm_used_count,
+    )
     return stops
 
 

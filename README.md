@@ -36,6 +36,25 @@ Aby byl prompt parser laditelný, první verze podporuje jen:
 - `remote_landscape`
 - `abandoned_industrial`
 
+## LLM Narration (optional)
+
+By default the pipeline uses template-based narration. For richer, context-aware text, enable Ollama:
+
+1. Install Ollama: https://ollama.com
+2. Pull a model: `ollama pull phi3.5` (~2.2 GB) or `ollama pull mistral` (~4 GB, higher quality)
+3. Set in `.env`: `OLLAMA_ENABLED=true`
+
+Ollama runs as a local daemon on `http://localhost:11434`. The pipeline connects to it the same way it connects to Nominatim or Overpass — plain HTTP via httpx, no Python library dependency on a specific model.
+
+**Graceful degradation:** If Ollama is unavailable, returns low-confidence output, or times out, the pipeline silently falls back to template narration. The `ExperienceStop.used_llm_narration` flag and `generation_metadata.llm_narration_used` field track which narration path was used.
+
+```bash
+# Quick setup
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull phi3.5
+# then set OLLAMA_ENABLED=true in .env
+```
+
 ## Dokumentace
 
 | Dokument | Obsah |
