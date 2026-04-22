@@ -2,6 +2,10 @@
 
 Communicates with Ollama /api/generate endpoint using JSON mode for structured output.
 Falls back silently to template narration if unavailable or low-confidence.
+
+This is a standalone class — it does not extend BaseProvider because it manages
+caching with a domain-specific key (place_id + mode + prompt prefix) rather than
+the generic params-dict key that BaseProvider.fetch() requires.
 """
 
 import hashlib
@@ -15,9 +19,10 @@ from app.core.logging import get_logger
 from app.models.experience import ExperienceStop, NarrationResult
 from app.models.intent import PromptIntent
 from app.models.place import PlaceCandidate
-from app.providers.base import BaseProvider
 
 logger = get_logger(__name__)
+
+_TTL_SECONDS = 30 * 24 * 3600  # 30 days
 
 _SYSTEM_PROMPT = (
     "You are a factual geo-narrator. Your task is to write a short narration for a place\n"
@@ -40,33 +45,21 @@ _SYSTEM_PROMPT = (
 )
 
 
-class OllamaNarratorProvider(BaseProvider):
+class OllamaNarratorProvider:
     """Narration via local Ollama instance.
+
+    Standalone class — does not extend BaseProvider. Manages its own cache
+    with a key derived from (place_id, mode, prompt_prefix) rather than a
+    generic params dict.
 
     Falls back to template narrator if Ollama is unavailable or returns
     low-confidence output. Never raises — always returns some narration.
     """
 
     def __init__(self, cache: BaseCache, base_url: str, model: str) -> None:
-        super().__init__(cache)
+        self._cache = cache
         self._base_url = base_url.rstrip("/")
         self._model = model
-
-    @property
-    def name(self) -> str:
-        return "ollama_narrator"
-
-    @property
-    def ttl_seconds(self) -> int:
-        return 30 * 24 * 3600  # 30 days
-
-    def cache_key(self, params: dict[str, Any]) -> str:
-        payload = json.dumps(params, sort_keys=True)
-        digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-        return f"ollama:narration:{digest}"
-
-    async def _fetch_live(self, params: dict[str, Any]) -> Any:
-        raise NotImplementedError("Use narrate_stop() instead")
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
@@ -107,7 +100,6 @@ class OllamaNarratorProvider(BaseProvider):
                 "temperature": 0.3,
                 "top_p": 0.9,
                 "num_predict": 300,
-                "seed": 42,
             },
         }
 
@@ -183,7 +175,7 @@ class OllamaNarratorProvider(BaseProvider):
                 fallback_reason="low_confidence",
             )
 
-        await self._cache.set(cache_key, result.model_dump(), ttl=self.ttl_seconds)
+        await self._cache.set(cache_key, result.model_dump(), ttl=_TTL_SECONDS)
         return result
 
     async def health_check(self) -> bool:

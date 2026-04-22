@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
-from app.models.experience import ExperienceStop
+from app.models.experience import ExperienceStop, NarrationResult
 from app.models.intent import ExperienceMode, PromptIntent
 from app.models.media import FallbackLevel
 from app.models.place import PlaceCandidate
@@ -126,7 +127,10 @@ def _build_why_here(ctx: NarrationContext, mode: ExperienceMode) -> str:
         # Wikidata description available — use it as the primary sentence
         text = ctx.wikidata_description
     else:
-        template = _WHY_HERE_TEMPLATES.get(mode, "OSM data: {tag_summary}.")
+        template = _WHY_HERE_TEMPLATES.get(mode)
+        if template is None:
+            logger.warning("no_why_here_template", mode=mode.value)
+            template = "OSM data: {tag_summary}."
         text = template.format(tag_summary=tag_summary)
 
     if ctx.heritage_status == "listed":
@@ -150,6 +154,50 @@ def _build_narration(ctx: NarrationContext) -> str:
     return " ".join(parts)
 
 
+def _extract_wikidata_context(
+    stop: ExperienceStop,
+    place: PlaceCandidate | None,
+    wikidata_map: dict[str, dict[str, str]],
+) -> tuple[str, str, str | None]:
+    """Return (wikidata_desc, wikidata_label, heritage_status) for a stop."""
+    wd = wikidata_map.get(stop.place_id, {})
+
+    if place is not None and place.wikidata is not None:
+        return (
+            place.wikidata.description or "",
+            place.wikidata.raw_labels.get("cs") or place.wikidata.raw_labels.get("en") or "",
+            place.wikidata.heritage_status,
+        )
+    if wd:
+        return wd.get("description", ""), wd.get("label", ""), None
+    return "", "", None
+
+
+def _apply_template(
+    stop: ExperienceStop,
+    place: PlaceCandidate | None,
+    wikidata_desc: str,
+    wikidata_label: str,
+    heritage_status: str | None,
+    llm_fallback_reason: str | None,
+    mode: ExperienceMode,
+) -> None:
+    """Fill stop fields using the template narrator path."""
+    ctx = NarrationContext(
+        name=stop.name,
+        tags=place.tags if place else {},
+        fallback_level=stop.fallback_level,
+        wikidata_label=wikidata_label,
+        wikidata_description=wikidata_desc,
+        heritage_status=heritage_status,
+    )
+    stop.why_here = _build_why_here(ctx, mode)
+    stop.narration = _build_narration(ctx)
+    stop.narration_confidence = ctx.confidence
+    stop.used_llm_narration = False
+    stop.llm_fallback_reason = llm_fallback_reason
+
+
 async def narrate_stops(
     stops: list[ExperienceStop],
     place_map: dict[str, PlaceCandidate],
@@ -158,34 +206,33 @@ async def narrate_stops(
     ollama: OllamaNarratorProvider | None = None,
 ) -> list[ExperienceStop]:
     wikidata_map = wikidata_map or {}
+
+    # Precompute wikidata context for each stop (no I/O, safe to do sequentially).
+    contexts = [
+        _extract_wikidata_context(stop, place_map.get(stop.place_id), wikidata_map)
+        for stop in stops
+    ]
+
+    # ── Fire all LLM calls in parallel ──────────────────────────────────────
+    async def _try_llm(stop: ExperienceStop, place: PlaceCandidate | None) -> NarrationResult | None:
+        if ollama is None or place is None:
+            return None
+        return await ollama.narrate_stop(stop, place, intent)
+
+    llm_results: list[NarrationResult | None] = list(
+        await asyncio.gather(*[
+            _try_llm(stop, place_map.get(stop.place_id))
+            for stop in stops
+        ])
+    )
+
+    # ── Apply results — LLM where successful, template as fallback ───────────
     weak_narration_count = 0
 
-    for stop in stops:
+    for stop, (wikidata_desc, wikidata_label, heritage_status), llm_result in zip(
+        stops, contexts, llm_results
+    ):
         place = place_map.get(stop.place_id)
-        wd = wikidata_map.get(stop.place_id, {})
-
-        # Prefer Wikidata context from place.wikidata (enriched during discovery)
-        # over the legacy wikidata_map dict parameter.
-        wikidata_desc = ""
-        wikidata_label = ""
-        heritage_status: str | None = None
-
-        if place is not None and place.wikidata is not None:
-            wikidata_desc = place.wikidata.description or ""
-            heritage_status = place.wikidata.heritage_status
-            wikidata_label = (
-                place.wikidata.raw_labels.get("cs")
-                or place.wikidata.raw_labels.get("en")
-                or ""
-            )
-        elif wd:
-            wikidata_desc = wd.get("description", "")
-            wikidata_label = wd.get("label", "")
-
-        # ── Try LLM narration first ──────────────────────────────────────────
-        llm_result = None
-        if ollama is not None and place is not None:
-            llm_result = await ollama.narrate_stop(stop, place, intent)
 
         if llm_result is not None and llm_result.used_llm and llm_result.confidence >= 0.4:
             stop.why_here = llm_result.why_here
@@ -195,21 +242,11 @@ async def narrate_stops(
             stop.used_llm_narration = True
             stop.llm_fallback_reason = None
         else:
-            # ── Template narrator fallback ───────────────────────────────────
-            ctx = NarrationContext(
-                name=stop.name,
-                tags=place.tags if place else {},
-                fallback_level=stop.fallback_level,
-                wikidata_label=wikidata_label,
-                wikidata_description=wikidata_desc,
-                heritage_status=heritage_status,
+            fallback_reason = llm_result.fallback_reason if llm_result is not None else None
+            _apply_template(
+                stop, place, wikidata_desc, wikidata_label, heritage_status,
+                fallback_reason, intent.mode,
             )
-            stop.why_here = _build_why_here(ctx, intent.mode)
-            stop.narration = _build_narration(ctx)
-            stop.narration_confidence = ctx.confidence
-            stop.used_llm_narration = False
-            if llm_result is not None:
-                stop.llm_fallback_reason = llm_result.fallback_reason
 
         if stop.narration_confidence < 0.50:
             weak_narration_count += 1

@@ -44,16 +44,30 @@ By default the pipeline uses template-based narration. For richer, context-aware
 2. Pull a model: `ollama pull phi3.5` (~2.2 GB) or `ollama pull mistral` (~4 GB, higher quality)
 3. Set in `.env`: `OLLAMA_ENABLED=true`
 
-Ollama runs as a local daemon on `http://localhost:11434`. The pipeline connects to it the same way it connects to Nominatim or Overpass — plain HTTP via httpx, no Python library dependency on a specific model.
-
-**Graceful degradation:** If Ollama is unavailable, returns low-confidence output, or times out, the pipeline silently falls back to template narration. The `ExperienceStop.used_llm_narration` flag and `generation_metadata.llm_narration_used` field track which narration path was used.
-
 ```bash
 # Quick setup
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull phi3.5
 # then set OLLAMA_ENABLED=true in .env
 ```
+
+Ollama runs as a local daemon on `http://localhost:11434`. The pipeline calls it the same way it calls Nominatim or Overpass — plain HTTP via httpx, no Python library dependency on a specific model. All stops are narrated **in parallel** via `asyncio.gather()`, so the extra latency is bounded by the slowest single call, not the total stop count.
+
+**Confidence thresholds:**
+- LLM output with `confidence >= 0.4` is accepted; the stop gets `used_llm_narration = true`.
+- LLM output with `confidence < 0.4` is silently discarded; template narration takes over (`llm_fallback_reason = "low_confidence"`).
+- Template narration marks a stop as weak when `narration_confidence < 0.5`, which feeds into the `partial_narration` quality flag.
+
+**Graceful degradation:** Connection errors, timeouts, malformed JSON, or low-confidence output all fall back to template narration without surfacing an error to the caller. `generation_metadata.llm_narration_used`, `llm_narration_model`, and `llm_fallback_count` let you inspect what actually happened.
+
+**Configuration** (all optional, `.env` or environment variables):
+
+| Variable | Default | Description |
+|---|---|---|
+| `OLLAMA_ENABLED` | `false` | Opt-in — must be explicitly enabled |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama daemon URL |
+| `OLLAMA_MODEL` | `phi3.5` | Model name (must be pulled first) |
+| `OLLAMA_TIMEOUT_SECONDS` | `30.0` | Per-request timeout |
 
 ## Dokumentace
 
