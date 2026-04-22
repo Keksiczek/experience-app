@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from app.core.logging import get_logger
 from app.models.experience import ExperienceStop
 from app.models.intent import ExperienceMode, PromptIntent
@@ -47,6 +47,7 @@ class NarrationContext:
     fallback_level: FallbackLevel
     wikidata_label: str = ""
     wikidata_description: str = ""
+    heritage_status: str | None = None
 
     @property
     def meaningful_tags(self) -> dict[str, str]:
@@ -101,22 +102,28 @@ def _build_why_here(ctx: NarrationContext, mode: ExperienceMode) -> str:
     """
     Grounded why_here: only states facts from ctx.
     Falls back to shorter factual note when context is weak.
+
+    If ctx.wikidata_description is set, it is used as the primary basis
+    of the sentence (instead of the generic mode template).
+    If heritage_status == "listed", appends "Kulturní památka."
     """
     if ctx.confidence < 0.25:
-        # Bare stop — state coordinates only, nothing else
         return f"Lokalita na souřadnicích ({ctx.name or 'bez názvu'}). Bez dostupných OSM dat."
 
     tag_summary = _build_tag_summary(ctx)
 
     if ctx.confidence < 0.50 or len(ctx.meaningful_tags) < _MIN_TAGS_FOR_FULL_NARRATION:
         # Minimal context — one factual line, no template sentence
-        return f"OSM záznam: {tag_summary}."
+        text = f"OSM záznam: {tag_summary}."
+    elif ctx.wikidata_description:
+        # Wikidata description available — use it as the primary sentence
+        text = ctx.wikidata_description
+    else:
+        template = _WHY_HERE_TEMPLATES.get(mode, "OSM data: {tag_summary}.")
+        text = template.format(tag_summary=tag_summary)
 
-    template = _WHY_HERE_TEMPLATES.get(mode, "OSM data: {tag_summary}.")
-    text = template.format(tag_summary=tag_summary)
-
-    if ctx.wikidata_description:
-        text += f" Wikidata: {ctx.wikidata_description}"
+    if ctx.heritage_status == "listed":
+        text += " Kulturní památka."
 
     return text
 
@@ -149,12 +156,31 @@ def narrate_stops(
         place = place_map.get(stop.place_id)
         wd = wikidata_map.get(stop.place_id, {})
 
+        # Prefer Wikidata context from place.wikidata (enriched during discovery)
+        # over the legacy wikidata_map dict parameter.
+        wikidata_desc = ""
+        wikidata_label = ""
+        heritage_status: str | None = None
+
+        if place is not None and place.wikidata is not None:
+            wikidata_desc = place.wikidata.description or ""
+            heritage_status = place.wikidata.heritage_status
+            wikidata_label = (
+                place.wikidata.raw_labels.get("cs")
+                or place.wikidata.raw_labels.get("en")
+                or ""
+            )
+        elif wd:
+            wikidata_desc = wd.get("description", "")
+            wikidata_label = wd.get("label", "")
+
         ctx = NarrationContext(
             name=stop.name,
             tags=place.tags if place else {},
             fallback_level=stop.fallback_level,
-            wikidata_label=wd.get("label", ""),
-            wikidata_description=wd.get("description", ""),
+            wikidata_label=wikidata_label,
+            wikidata_description=wikidata_desc,
+            heritage_status=heritage_status,
         )
 
         stop.why_here = _build_why_here(ctx, intent.mode)

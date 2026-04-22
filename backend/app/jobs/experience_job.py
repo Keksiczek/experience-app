@@ -24,6 +24,7 @@ from app.providers.mapillary import MapillaryProvider
 from app.providers.nominatim import NominatimProvider
 from app.providers.osm import OverpassProvider
 from app.providers.wikimedia import WikimediaProvider
+from app.providers.wikidata import WikidataProvider
 
 logger = get_logger(__name__)
 
@@ -56,7 +57,12 @@ async def list_job_ids() -> list[str]:
 
 async def create_job(prompt: str) -> Experience:
     job_id = str(uuid.uuid4())
-    experience = Experience(id=job_id, prompt=prompt, job_status=JobStatus.PENDING)
+    experience = Experience(
+        id=job_id,
+        prompt=prompt,
+        job_status=JobStatus.PENDING,
+        created_at=datetime.now(UTC),
+    )
     await _get_store().save(experience)
     return experience
 
@@ -83,11 +89,13 @@ async def _execute_pipeline(experience: Experience) -> None:
         overpass = MockOverpassProvider(cache)
         mapillary = MockMapillaryProvider(cache)
         wikimedia = MockWikimediaProvider(cache)
+        wikidata: WikidataProvider | None = None   # skip Wikidata in mock mode
     else:
         nominatim = NominatimProvider(cache)
         overpass = OverpassProvider(cache)
         mapillary = MapillaryProvider(cache)
         wikimedia = WikimediaProvider(cache)
+        wikidata = WikidataProvider(cache)
 
     metadata = GenerationMetadata(started_at=started_at)
 
@@ -147,7 +155,9 @@ async def _execute_pipeline(experience: Experience) -> None:
         # ── [3] Place Discovery ──────────────────────────────────────────────
         logger.info("pipeline_step", step="place_discovery", job_id=experience.id)
         try:
-            places, discovery_warnings = await discover_places(intent, regions, overpass)
+            places, discovery_warnings = await discover_places(
+                intent, regions, overpass
+            )
         except TooFewPlacesError as e:
             metadata.warnings.extend(e.warnings)
             await _fail(
@@ -204,7 +214,7 @@ async def _execute_pipeline(experience: Experience) -> None:
 
         # ── [5] Experience Composition ───────────────────────────────────────
         logger.info("pipeline_step", step="experience_composer", job_id=experience.id)
-        stops = compose_experience(intent, places, media_map)
+        stops = await compose_experience(intent, places, media_map, wikidata)
         if len(stops) < settings.pipeline_stops_min:
             await _fail(
                 experience,
@@ -219,9 +229,18 @@ async def _execute_pipeline(experience: Experience) -> None:
             )
             return
 
+        threshold_tag = (
+            "emergency"
+            if any("emergency" in str(s.decision_reasons) for s in stops)
+            else "normal"
+        )
         metadata.decision_reasons.append(
-            f"composer selected {len(stops)} stops "
-            f"(threshold={'emergency' if any('emergency' in str(s.decision_reasons) for s in stops) else 'normal'})"
+            f"composer selected {len(stops)} stops (threshold={threshold_tag})"
+        )
+        metadata.route_coherence_applied = True
+        metadata.route_style_used = intent.route_style
+        metadata.decision_reasons.append(
+            f"route_coherence: ordered by route_style={intent.route_style!r}"
         )
         metadata.pipeline_steps.append("experience_composer")
 

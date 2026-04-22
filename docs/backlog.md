@@ -55,19 +55,19 @@ Backlog je organizovaný do iterací. Každá iterace má jasný cíl a definici
 
 **Cíl:** Pipeline funguje pro všechny 3 módy. Parser je robustní pro různé formulace promptů.
 
-| # | Úkol | Typ |
-|---|---|---|
-| 2.1 | Rozšířit Overpass tagy pro `scenic_roadtrip` | backend |
-| 2.2 | Rozšířit Overpass tagy pro `remote_landscape` | backend |
-| 2.3 | Přidat Wikidata adapter pro kontext míst | backend |
-| 2.4 | Rozšířit scoring o context_score z Wikidata | backend |
-| 2.5 | Přidat route_coherence výpočet (linear/loop/scattered) | backend |
-| 2.6 | Přidat quality_flags do Experience výstupu | backend |
-| 2.7 | Otestovat všechny testovací scénáře (A–E) | test |
-| 2.8 | Přidat `/health` endpoint s provider status | backend |
-| 2.9 | Zdokumentovat výstupní formát API | docs |
-| 2.10 | Wikidata adapter pro kontext míst (context_score) | backend |
-| 2.11 | Route coherence — geografické seřazení stopů dle route_style (linear/loop/scattered) | backend |
+| # | Úkol | Typ | Stav |
+|---|---|---|---|
+| 2.1 | Rozšířit Overpass tagy pro `scenic_roadtrip` | backend | |
+| 2.2 | Rozšířit Overpass tagy pro `remote_landscape` | backend | |
+| 2.3 | Přidat Wikidata adapter pro kontext míst | backend | ✅ hotovo |
+| 2.4 | Rozšířit scoring o context_score z Wikidata | backend | ✅ hotovo |
+| 2.5 | Přidat route_coherence výpočet (linear/loop/scattered) | backend | ✅ hotovo |
+| 2.6 | Přidat quality_flags do Experience výstupu | backend | |
+| 2.7 | Otestovat všechny testovací scénáře (A–E) | test | |
+| 2.8 | Přidat `/health` endpoint s provider status | backend | |
+| 2.9 | Zdokumentovat výstupní formát API | docs | |
+| 2.10 | Wikidata adapter pro kontext míst (context_score) | backend | ✅ hotovo |
+| 2.11 | Route coherence — geografické seřazení stopů dle route_style (linear/loop/scattered) | backend | ✅ hotovo |
 
 ---
 
@@ -105,7 +105,7 @@ Tato stopa je oddělena, protože ovlivňuje architekturu více než jiné Itera
 | 3.P.1 | Implementovat `SQLiteJobStore` (zero-dependency persistent store) | backend | ✅ hotovo |
 | 3.P.2 | Přidat TTL evikci starých jobů (default: 7 dní) | backend | ✅ hotovo |
 | 3.P.3 | Přidat `execution_log: list[dict]` do `GenerationMetadata` pro per-step audit trail | backend | |
-| 3.P.4 | Přidat `GET /experiences` endpoint pro listing s paginací | backend | |
+| 3.P.4 | Přidat `GET /experiences` endpoint pro listing s paginací | backend | ✅ hotovo |
 | 3.P.5 | Dokumentovat migration path na Redis nebo Postgres pro produkci | docs | |
 | 3.P.6 | Definovat resumability strategy: za jakých podmínek lze job retry-ovat bez duplicit | docs | |
 

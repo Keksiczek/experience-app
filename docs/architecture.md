@@ -34,6 +34,13 @@ Prompt (string)
     │  ✗ FAIL: méně než MIN_PLACES míst → pipeline se zastaví
     │  ⚠ WARN: < IDEAL_PLACES, žádné must_have hits, vysoký podíl no_name_tag
     │
+    ├─► [3b] Wikidata Enrichment (concurrent, max 5 req)
+    │       Datový zdroj: Wikidata SPARQL geosearch (500 m radius)
+    │       Fallback: wbsearchentities REST API (name search)
+    │       Výstup: place.wikidata = WikidataContext (description, heritage_status,
+    │               instance_of, tourism_score, image_url, raw_labels)
+    │       Cache TTL: 7 dní | Rate limit: 1 req/s | Selhání: graceful → None
+    │
     ▼
 [4] Media Resolution
     │  → MediaCandidate[] (provider, url, license, coverage_score)
@@ -44,7 +51,10 @@ Prompt (string)
 [5] Experience Composer V2
     │  → ExperienceStop[] (ordered, scored, decision_reasons[], fallback_reason)
     │  Scoring: prompt_relevance + media_availability + scenic_value +
-    │            diversity_bonus + context_richness + similarity_penalty + combo_bonus
+    │            diversity_bonus + context_richness + context_score(Wikidata) +
+    │            similarity_penalty + combo_bonus
+    │  Route coherence: _order_stops(route_style) — linear/loop/scattered
+    │  stop_order field set on each ExperienceStop after ordering
     │
     ▼
 [6] Narrator
@@ -143,6 +153,7 @@ Bodové schéma rozšířeno o nové komponenty:
 | `diversity_bonus` | Prostorová diverzita vs. vybraných stops | 0.0–1.0 |
 | `route_coherence` | Neutrální 0.5 (routing dosud neimplementován) | 0.5 |
 | `context_richness` | Počet smysluplných OSM tagů (normalizováno na 8) | 0.0–1.0 |
+| `context_score` | Wikidata bonus: heritage (+0.15), tourism_score>0.5 (+0.10), description (+0.05), cap 0.20; váha 0.15 | 0.0–0.20 |
 | `similarity_penalty` | Srážka za podobný tag profil jako existující stop | 0.0–0.2 |
 | `combo_bonus` | Bonus: dobrá relevance + médium + kontext zároveň | 0.0–0.08 |
 

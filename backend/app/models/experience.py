@@ -16,6 +16,7 @@ class JobStatus(str, Enum):
 class ExperienceStop(BaseModel):
     id: str
     order: int
+    stop_order: int = 0   # 0-indexed final display order after route coherence
 
     place_id: str
     media_id: str | None = None
@@ -50,6 +51,10 @@ class GenerationMetadata(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     decision_reasons: list[str] = Field(default_factory=list)
     degradation_reason: str | None = None
+
+    # Route coherence
+    route_coherence_applied: bool = False
+    route_style_used: str | None = None
 
 
 class ExperienceQualityMetrics(BaseModel):
@@ -89,5 +94,29 @@ class Experience(BaseModel):
     quality_metrics: ExperienceQualityMetrics | None = None
     generation_metadata: GenerationMetadata | None = None
 
+    created_at: datetime | None = None
+
     error_code: str | None = None
     error_message: str | None = None
+
+
+class ExperienceSummary(BaseModel):
+    job_id: str
+    job_status: JobStatus
+    prompt: str
+    stop_count: int
+    quality_flags: list[str]
+    created_at: datetime | None
+    error_code: str | None = None
+
+    @classmethod
+    def from_experience(cls, exp: "Experience") -> "ExperienceSummary":
+        return cls(
+            job_id=exp.id,
+            job_status=exp.job_status,
+            prompt=exp.prompt,
+            stop_count=len(exp.stops),
+            quality_flags=exp.quality_flags,
+            created_at=exp.created_at,
+            error_code=exp.error_code,
+        )

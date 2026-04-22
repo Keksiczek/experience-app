@@ -1,10 +1,15 @@
-"""Experience Composer: greedy stop selection with diversity-aware rescoring.
+"""Experience Composer: greedy stop selection with diversity-aware rescoring,
+followed by geographic ordering via _order_stops.
 
 Each selected stop carries decision_reasons and (where applicable) fallback_reason
 so poor outputs can be traced back to their root cause.
 """
 
+import asyncio
+import math
 import uuid
+from typing import TYPE_CHECKING
+
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.experience import ExperienceStop
@@ -13,13 +18,19 @@ from app.models.media import FallbackLevel, MediaCandidate
 from app.models.place import PlaceCandidate
 from app.scoring.scorer import score_place
 
+if TYPE_CHECKING:
+    from app.providers.wikidata import WikidataProvider
+
 logger = get_logger(__name__)
 
+_WIKIDATA_CONCURRENCY = 5
 
-def compose_experience(
+
+async def compose_experience(
     intent: PromptIntent,
     places: list[PlaceCandidate],
     media_map: dict[str, tuple[MediaCandidate | None, FallbackLevel]],
+    wikidata: "WikidataProvider | None" = None,
 ) -> list[ExperienceStop]:
     threshold = settings.pipeline_score_threshold
     threshold_lowered = False
@@ -60,9 +71,78 @@ def compose_experience(
         logger.error("composer_no_stops_selected", places_evaluated=len(places))
         return []
 
+    # Enrich only the selected candidates — avoids wasting quota on rejected places
+    if wikidata is not None:
+        await _enrich_with_wikidata(selected, wikidata)
+        wikidata_count = sum(1 for p in selected if p.wikidata is not None)
+        logger.info(
+            "wikidata_enrichment_complete",
+            enriched=wikidata_count,
+            total=len(selected),
+        )
+
     stops = _build_stops(selected, media_map, threshold_lowered)
-    logger.info("composer_done", stops=len(stops), threshold_used=threshold)
+    stops = _order_stops(stops, intent.route_style)
+    logger.info(
+        "composer_done",
+        stops=len(stops),
+        threshold_used=threshold,
+        route_style=intent.route_style,
+    )
     return stops
+
+
+def _order_stops(
+    stops: list[ExperienceStop],
+    route_style: str,
+) -> list[ExperienceStop]:
+    """Re-order stops for geographic coherence based on route_style.
+
+    linear   — sort along the axis of greatest spread (W→E or S→N)
+    loop     — nearest-neighbor starting from westernmost point
+    scattered — preserve original greedy-selection order
+    """
+    if len(stops) <= 1:
+        return [s.model_copy(update={"stop_order": i}) for i, s in enumerate(stops)]
+
+    if route_style == "linear":
+        lats = [s.lat for s in stops]
+        lons = [s.lon for s in stops]
+        lat_spread = max(lats) - min(lats)
+        lon_spread = max(lons) - min(lons)
+        if lon_spread > lat_spread:
+            ordered = sorted(stops, key=lambda s: s.lon)   # west → east
+        else:
+            ordered = sorted(stops, key=lambda s: s.lat)   # south → north
+
+    elif route_style == "loop":
+        ordered = _nearest_neighbor_loop(stops)
+
+    else:  # "scattered" or unknown
+        ordered = list(stops)
+
+    return [s.model_copy(update={"stop_order": i}) for i, s in enumerate(ordered)]
+
+
+def _nearest_neighbor_loop(stops: list[ExperienceStop]) -> list[ExperienceStop]:
+    """Nearest-neighbor Hamiltonian path starting from the westernmost stop.
+    Pure stdlib math — no numpy.
+    """
+    def _dist2(a: ExperienceStop, b: ExperienceStop) -> float:
+        dlat = a.lat - b.lat
+        dlon = a.lon - b.lon
+        return dlat * dlat + dlon * dlon
+
+    remaining = sorted(stops, key=lambda s: s.lon)  # westernmost first
+    ordered: list[ExperienceStop] = [remaining.pop(0)]
+
+    while remaining:
+        current = ordered[-1]
+        nearest = min(remaining, key=lambda s: _dist2(current, s))
+        ordered.append(nearest)
+        remaining.remove(nearest)
+
+    return ordered
 
 
 def _build_stops(
@@ -100,7 +180,7 @@ def _build_stops(
         # Signal-strength note
         if place.signal_strength == "weak":
             decision_reasons.append(
-                f"weak OSM signal — place matched only low-priority tags"
+                "weak OSM signal — place matched only low-priority tags"
             )
         if place.discovery_warnings:
             decision_reasons.extend(
@@ -127,3 +207,20 @@ def _build_stops(
             )
         )
     return stops
+
+
+async def _enrich_with_wikidata(
+    places: list[PlaceCandidate],
+    wikidata: "WikidataProvider",
+) -> None:
+    sem = asyncio.Semaphore(_WIKIDATA_CONCURRENCY)
+
+    async def enrich(place: PlaceCandidate) -> None:
+        async with sem:
+            ctx = await wikidata.fetch_context_for_place(
+                place.id, place.lat, place.lon, place.name
+            )
+            if ctx is not None:
+                place.wikidata = ctx
+
+    await asyncio.gather(*[enrich(p) for p in places])
