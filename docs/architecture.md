@@ -57,17 +57,38 @@ Prompt (string)
     │  stop_order field set on each ExperienceStop after ordering
     │
     ▼
-[6] Narrator
+[6] Narrator (Iteration 2: LLM-assisted via Ollama)
     │  → narration pro každý stop, summary pro celou experience
     │  Pravidlo: narrace smí obsahovat jen fakta z dat předchozích kroků
+    │
+    ├─► [6a] OllamaNarratorProvider (opt-in, OLLAMA_ENABLED=true)
+    │       Model: phi3.5 nebo mistral přes lokální Ollama daemon
+    │       Endpoint: POST /api/generate s format="json" (Ollama JSON mode)
+    │       Grounding: system prompt zakazuje halucinaci — pouze fakta z vstupu
+    │       Volání: asyncio.gather() — všechny stops paralelně (background job)
+    │       Fallback threshold: LLM confidence < 0.4 → template narrator
+    │       Cache TTL: 30 dní (hash place_id + mode + prompt[:50])
+    │       Selhání: nikdy nevyhodí výjimku; vrátí NarrationResult(used_llm=False)
+    │       Implementace: standalone třída, nededí BaseProvider
+    │
+    ├─► [6b] Template Narrator (fallback, vždy dostupný)
+    │       Stavba why_here a narration z OSM tagů a Wikidata kontextu
+    │       Confidence je objektivní metrika (počet tagů, Wikidata dostupnost)
+    │       Template warning: logger.warning("no_why_here_template") pro neznámý mode
     │
     ▼
 Experience (výsledný objekt)
     └── generation_metadata.warnings[]          — agregovaná varování z celé pipeline
     └── generation_metadata.decision_reasons[]  — klíčová rozhodnutí pipeline
     └── generation_metadata.degradation_reason  — pokud pipeline degradovala
+    └── generation_metadata.llm_narration_used  — True pokud aspoň jeden stop použil LLM
+    └── generation_metadata.llm_narration_model — název modelu (phi3.5 / mistral / None)
+    └── generation_metadata.llm_fallback_count  — počet stopů kde LLM selhal → template
     └── stops[].decision_reasons[]              — per-stop scoring reasons
     └── stops[].fallback_reason                 — proč stop nemá média
+    └── stops[].used_llm_narration              — True pokud stop použil LLM naraci
+    └── stops[].grounding_sources               — zdroje použité LLM (osm_tags, wikidata_description, …)
+    └── stops[].llm_fallback_reason             — proč LLM selhal (low_confidence / ollama_error: …)
 ```
 
 ## Quality Gates a degradační logika
@@ -93,6 +114,27 @@ Každý gate má přesný threshold (konfigurabilní v `core/config.py`) a defin
 | `media_low` | `PIPELINE_MEDIA_LOW_THRESHOLD` | 0.50 | Pokud > 50 % stops nemá média → `quality_flag = low_media` |
 | `narration_weak` | `PIPELINE_NARRATION_WEAK_THRESHOLD` | 0.50 | `narration_confidence < 0.50` na majoritě stops → `quality_flag = partial_narration` |
 | `narration_min_tags` | `PIPELINE_NARRATION_MIN_TAGS` | 2 | Méně než 2 smysluplné tagy → krátká faktická poznámka místo šablony |
+
+### Narration confidence thresholds
+
+Dva nezávislé confidence systémy — LLM a template — operují s různými prahy:
+
+| Threshold | Hodnota | Kde se používá | Při překročení |
+|---|---|---|---|
+| LLM accept | **≥ 0.4** | `OllamaNarratorProvider.narrate_stop()` | LLM výstup použit; `stop.used_llm_narration = True` |
+| LLM reject | **< 0.4** | `OllamaNarratorProvider.narrate_stop()` | Tiché degradování na template narrator; `llm_fallback_reason = "low_confidence"` |
+| Template weak | **< 0.5** | `NarrationContext.confidence` | Stop označen jako slabý; počítán do `quality_flag = partial_narration` |
+| Template min tags | **< 2** | `_build_why_here()` | Krátká faktická poznámka místo šablony (`"OSM záznam: ..."`) |
+
+Template confidence je objektivní metrika odvozená výhradně z dostupných dat:
+
+| Dostupná data | confidence |
+|---|---|
+| Žádné OSM tagy | 0.0 |
+| 1 smysluplný tag, bez Wikidata | 0.25 |
+| 2–3 tagy, bez Wikidata | 0.50 |
+| 4+ tagy nebo Wikidata popis | 0.75 |
+| 4+ tagy + Wikidata + název | 1.0 |
 
 ### Degradační cesty — vizualizace
 

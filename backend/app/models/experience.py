@@ -13,6 +13,15 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+class NarrationResult(BaseModel):
+    why_here: str
+    narration: str
+    confidence: float
+    sources_used: list[str] = []
+    used_llm: bool = False
+    fallback_reason: str | None = None
+
+
 class ExperienceStop(BaseModel):
     id: str
     order: int
@@ -38,6 +47,11 @@ class ExperienceStop(BaseModel):
     fallback_reason: str | None = None
     emergency_threshold_used: bool = False
 
+    # LLM narration metadata
+    grounding_sources: list[str] = Field(default_factory=list)
+    used_llm_narration: bool = False
+    llm_fallback_reason: str | None = None
+
 
 class GenerationMetadata(BaseModel):
     started_at: datetime
@@ -55,6 +69,11 @@ class GenerationMetadata(BaseModel):
     # Route coherence
     route_coherence_applied: bool = False
     route_style_used: str | None = None
+
+    # LLM narration stats
+    llm_narration_used: bool = False
+    llm_narration_model: str | None = None
+    llm_fallback_count: int = 0
 
 
 class ExperienceQualityMetrics(BaseModel):
