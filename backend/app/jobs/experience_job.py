@@ -156,7 +156,7 @@ async def _execute_pipeline(experience: Experience) -> None:
         logger.info("pipeline_step", step="place_discovery", job_id=experience.id)
         try:
             places, discovery_warnings = await discover_places(
-                intent, regions, overpass, wikidata
+                intent, regions, overpass
             )
         except TooFewPlacesError as e:
             metadata.warnings.extend(e.warnings)
@@ -214,7 +214,7 @@ async def _execute_pipeline(experience: Experience) -> None:
 
         # ── [5] Experience Composition ───────────────────────────────────────
         logger.info("pipeline_step", step="experience_composer", job_id=experience.id)
-        stops = compose_experience(intent, places, media_map)
+        stops = await compose_experience(intent, places, media_map, wikidata)
         if len(stops) < settings.pipeline_stops_min:
             await _fail(
                 experience,

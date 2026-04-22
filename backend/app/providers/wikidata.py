@@ -4,7 +4,7 @@ Primary path: SPARQL wikibase:around service finds entities within 500 m of
 (lat, lon). Fallback: wbsearchentities REST API searched by place name.
 
 Cache TTL: 7 days (place→Wikidata mapping is stable).
-Rate limit: 1 req/s enforced via module-level timestamp (same pattern as Nominatim).
+Rate limit: 1 req/s enforced via instance-level timestamp (safe for concurrent instances).
 """
 
 import asyncio
@@ -25,8 +25,6 @@ USER_AGENT = "experience-app/1.0 (geo-exploration; contact@example.com)"
 
 _GEO_CONTEXT_TTL = 7 * 24 * 3600   # 7 days
 _RATE_INTERVAL = 1.1                 # seconds between SPARQL requests
-
-_LAST_SPARQL_TIME: float = 0.0
 
 # SPARQL: find physical entities within 0.5 km, exclude humans (Q5),
 # grab instance-of labels, image, heritage designation, sitelinks count.
@@ -56,6 +54,7 @@ LIMIT 5
 class WikidataProvider(BaseProvider):
     def __init__(self, cache: BaseCache) -> None:
         super().__init__(cache)
+        self._last_sparql_time: float = 0.0
 
     @property
     def name(self) -> str:
@@ -148,13 +147,11 @@ LIMIT 2
     # ------------------------------------------------------------------
 
     async def _sparql_geosearch(self, lat: float, lon: float) -> WikidataContext | None:
-        global _LAST_SPARQL_TIME
-
         # Enforce 1 req/s
-        elapsed = time.monotonic() - _LAST_SPARQL_TIME
+        elapsed = time.monotonic() - self._last_sparql_time
         if elapsed < _RATE_INTERVAL:
             await asyncio.sleep(_RATE_INTERVAL - elapsed)
-        _LAST_SPARQL_TIME = time.monotonic()
+        self._last_sparql_time = time.monotonic()
 
         query = _SPARQL_GEO_TEMPLATE.format(lat=lat, lon=lon)
         try:

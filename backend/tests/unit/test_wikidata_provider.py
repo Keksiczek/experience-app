@@ -1,11 +1,10 @@
 """Unit tests for WikidataProvider.
 
 Tests use pytest-httpx to mock HTTP without live network calls.
-The rate-limit global is reset before each test to avoid inter-test sleeps.
+Each test creates a fresh WikidataProvider instance, so rate-limit state is isolated.
 """
 
 import pytest
-import app.providers.wikidata as _wikidata_mod
 from app.cache.base import BaseCache
 from app.providers.wikidata import WikidataProvider, _parse_geo_bindings
 
@@ -27,12 +26,6 @@ class _NullCache(BaseCache):
 
     async def clear_expired(self) -> int:
         return 0
-
-
-@pytest.fixture(autouse=True)
-def _reset_rate_limiter():
-    """Reset module-level rate-limit timestamp so tests don't sleep."""
-    _wikidata_mod._LAST_SPARQL_TIME = 0.0
 
 
 # ---------------------------------------------------------------------------
