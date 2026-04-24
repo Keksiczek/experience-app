@@ -123,6 +123,10 @@
     try {
       const { job_id } = await window.api.createExperience(prompt);
 
+      if (window.history_ui && typeof window.history_ui.addOptimistic === 'function') {
+        window.history_ui.addOptimistic({ job_id, prompt });
+      }
+
       const finalExp = await window.api.pollUntilDone(
         job_id,
         (exp) => {

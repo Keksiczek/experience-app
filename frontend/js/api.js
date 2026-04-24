@@ -46,6 +46,11 @@ async function listExperiences(limit = 10) {
   return _request('GET', `/experiences?limit=${limit}`);
 }
 
+async function deleteExperience(jobId) {
+  if (!jobId) throw new Error('jobId je povinné');
+  return _request('DELETE', `/experiences/${encodeURIComponent(jobId)}`);
+}
+
 async function getHealth() {
   return _request('GET', '/health');
 }
@@ -88,6 +93,7 @@ window.api = {
   createExperience,
   getExperience,
   listExperiences,
+  deleteExperience,
   getHealth,
   pollUntilDone,
 };

@@ -56,6 +56,10 @@ async def list_job_ids() -> list[str]:
     return await _get_store().list_ids()
 
 
+async def delete_job(job_id: str) -> bool:
+    return await _get_store().delete(job_id)
+
+
 async def create_job(prompt: str) -> Experience:
     job_id = str(uuid.uuid4())
     experience = Experience(

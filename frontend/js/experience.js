@@ -20,21 +20,29 @@
     return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fn)}?width=${width}`;
   }
 
+  const METRIC_HINTS = {
+    'Kvalita narace': 'Průměrná spolehlivost narace napříč zastávkami (grounding na zdrojích).',
+    'Koherence trasy': 'Jak dobře po sobě zastávky geograficky navazují v daném stylu (linear/loop).',
+    'Pokrytí médii': 'Poměr zastávek s použitelným obrázkem (Wikimedia/Mapillary).',
+    'Diverzita míst': 'Průměrná vzdálenost mezi zastávkami proti cílovému rozsahu regionu.',
+  };
+
   function renderMetricBar(label, value) {
     const v = Math.max(0, Math.min(1, Number(value) || 0));
     const pct = Math.round(v * 100);
     let cls = 'low';
     if (v >= 0.7) cls = 'high';
     else if (v >= 0.4) cls = 'mid';
+    const hint = METRIC_HINTS[label] || '';
     return `
-      <div class="metric">
+      <div class="metric"${hint ? ` title="${escapeHtml(hint)}"` : ''}>
         <div class="metric-label">
           <span>${escapeHtml(label)}</span>
           <span class="metric-value">${pct}%</span>
         </div>
         <div class="metric-bar" role="progressbar"
              aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"
-             aria-label="${escapeHtml(label)}">
+             aria-label="${escapeHtml(label)}${hint ? `: ${escapeHtml(hint)}` : ''}">
           <div class="metric-fill ${cls}" style="width:${pct}%"></div>
         </div>
       </div>
@@ -183,6 +191,7 @@
     const sortedStops = (exp.stops || []).slice().sort(
       (a, b) => (a.stop_order ?? a.order ?? 0) - (b.stop_order ?? b.order ?? 0),
     );
+    orderedStopIds = sortedStops.map((s) => s.id).filter(Boolean);
 
     if (stopsCount) {
       const n = sortedStops.length;
@@ -204,9 +213,17 @@
     if (providerDetails) providerDetails.innerHTML = renderProviderTable(meta);
 
     if (mapInstance) {
-      mapInstance.setExperience(exp, {
-        onMarkerClick: (stopId) => activateStop(stopId, { scroll: true, openMarker: false }),
-      });
+      try {
+        mapInstance.setExperience(exp, {
+          onMarkerClick: (stopId) => activateStop(stopId, { scroll: true, openMarker: false }),
+        });
+      } catch (err) {
+        console.error('Map setExperience failed:', err);
+        renderMapFallback(err);
+        populateMapFallback(sortedStops);
+      }
+    } else if (mapFallbackActive) {
+      populateMapFallback(sortedStops);
     }
 
     stopsList.querySelectorAll('.stop-card').forEach((card) => {
@@ -232,6 +249,45 @@
   }
 
   let currentMapInstance = null;
+  let currentActiveId = null;
+  let orderedStopIds = [];
+  let mapFallbackActive = false;
+
+  function renderMapFallback(err) {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return;
+    mapFallbackActive = true;
+    mapEl.classList.add('map-fallback');
+    mapEl.innerHTML = `
+      <div class="map-fallback-inner">
+        <div class="map-fallback-title">Mapa nedostupná</div>
+        <div class="map-fallback-hint">
+          ${err ? escapeHtml(err.message || String(err)) : 'Zkus obnovit stránku nebo zkontrolovat připojení.'}
+        </div>
+        <ul id="map-fallback-list" class="map-fallback-list"></ul>
+      </div>
+    `;
+  }
+
+  function populateMapFallback(stops) {
+    const list = document.getElementById('map-fallback-list');
+    if (!list) return;
+    const items = stops
+      .filter((s) => typeof s.lat === 'number' && typeof s.lon === 'number')
+      .map((s, i) => {
+        const title = s.short_title || s.name || `Zastávka ${i + 1}`;
+        const num = (s.stop_order ?? i) + 1;
+        const osm = `https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=13/${s.lat}/${s.lon}`;
+        return `
+          <li>
+            <strong>${num}. ${escapeHtml(title)}</strong>
+            <a href="${osm}" target="_blank" rel="noopener noreferrer">otevřít v OSM ↗</a>
+          </li>
+        `;
+      })
+      .join('');
+    list.innerHTML = items || '<li class="map-fallback-empty">Bez souřadnic.</li>';
+  }
 
   function activateStop(stopId, opts = {}) {
     if (!stopId) return;
@@ -241,9 +297,56 @@
       card.classList.add('active');
       if (opts.scroll) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    currentActiveId = stopId;
     if (opts.openMarker && (opts.mapInstance || currentMapInstance)) {
       (opts.mapInstance || currentMapInstance).focusStop(stopId);
     }
+  }
+
+  function stepStop(delta) {
+    if (orderedStopIds.length === 0) return;
+    const idx = currentActiveId ? orderedStopIds.indexOf(currentActiveId) : -1;
+    let next;
+    if (idx === -1) next = delta > 0 ? 0 : orderedStopIds.length - 1;
+    else next = (idx + delta + orderedStopIds.length) % orderedStopIds.length;
+    activateStop(orderedStopIds[next], { scroll: true, openMarker: true });
+  }
+
+  function isTextInputFocused() {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+  }
+
+  function bindHotkeys() {
+    if (document._stopHotkeysBound) return;
+    document._stopHotkeysBound = true;
+    document.addEventListener('keydown', (ev) => {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (isTextInputFocused()) return;
+      switch (ev.key) {
+        case 'j':
+        case 'ArrowDown':
+          ev.preventDefault();
+          stepStop(+1);
+          break;
+        case 'k':
+        case 'ArrowUp':
+          ev.preventDefault();
+          stepStop(-1);
+          break;
+        case 'Escape':
+          if (currentMapInstance && currentMapInstance.map) {
+            currentMapInstance.map.closePopup();
+          }
+          document.querySelectorAll('.stop-card.active').forEach((el) => el.classList.remove('active'));
+          currentActiveId = null;
+          break;
+        default:
+          break;
+      }
+    });
   }
 
   function bindFooter(exp) {
@@ -280,10 +383,13 @@
 
     if (stopsList) stopsList.innerHTML = renderSkeletonStops(3);
 
+    bindHotkeys();
+
     try {
       currentMapInstance = window.map_ui.initMap('map');
     } catch (err) {
       console.error('Map init failed:', err);
+      renderMapFallback(err);
     }
 
     try {

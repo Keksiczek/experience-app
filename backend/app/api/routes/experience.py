@@ -1,8 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.jobs.experience_job import (
     create_job,
+    delete_job,
     get_experience_async,
     list_job_ids,
     run_experience_job,
@@ -57,3 +59,11 @@ async def get_experience_by_id(job_id: str) -> Experience:
     if experience is None:
         raise HTTPException(status_code=404, detail=f"Experience '{job_id}' nenalezena")
     return experience
+
+
+@router.delete("/{job_id}", status_code=204)
+async def delete_experience(job_id: str) -> Response:
+    deleted = await delete_job(job_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Experience '{job_id}' nenalezena")
+    return Response(status_code=204)
