@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Experience App — Generátor</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>Experience App <span class="subtitle">kurátorovaný geo-prolog</span></h1>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <section class="panel generator">
+      <h2>Generátor</h2>
+      <textarea
+        id="prompt-input"
+        placeholder="Napiš, co chceš prozkoumat… např. Průmyslové ruiny v okolí Prahy"
+        maxlength="2000"
+      ></textarea>
+      <div class="examples" id="generator-examples">
+        Příklady:
+        <span data-example="Průmyslové ruiny v okolí Prahy">Průmyslové ruiny v okolí Prahy</span>
+        <span data-example="Malebná krajina jižní Moravy">Malebná krajina jižní Moravy</span>
+        <span data-example="Opuštěná místa Středočeského kraje">Opuštěná místa Středočeského kraje</span>
+      </div>
+      <button id="generate-btn" class="btn">Generovat experience</button>
+      <div id="generator-status" class="generator-status hidden"></div>
+    </section>
+
+    <section class="panel history">
+      <h2>Poslední experiences</h2>
+      <div id="history-list" class="history-list">
+        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line med"></div></div>
+        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line short"></div></div>
+        <div class="skeleton"><div class="skeleton-line med"></div><div class="skeleton-line short"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>
+      <span id="health-dot" class="health-dot"></span>
+      <span id="health-text">Zjišťuji stav…</span>
+    </span>
+    <span id="health-ollama" style="display:none;"></span>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/generator.js"></script>
+</body>
+</html>

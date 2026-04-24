@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Experience — Detail</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body style="padding-bottom:0;">
+  <header class="app-header">
+    <div>
+      <h1>Experience App <span class="subtitle">detail</span></h1>
+    </div>
+    <a href="index.html" class="btn btn-secondary" style="margin:0;padding:6px 12px;">← Zpět</a>
+  </header>
+
+  <main class="detail-layout">
+    <aside class="detail-panel">
+      <div id="detail-header">
+        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line med"></div></div>
+      </div>
+
+      <div id="detail-metrics"></div>
+
+      <div class="stops-header">
+        <h2>Zastávky</h2>
+      </div>
+      <div id="stops-list" class="stops-list"></div>
+
+      <div class="detail-footer">
+        <button id="copy-json-btn" class="btn btn-secondary">📋 Kopírovat JSON</button>
+        <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zpět</a>
+        <details>
+          <summary>Provider calls (debug)</summary>
+          <div id="provider-details-body"></div>
+        </details>
+      </div>
+    </aside>
+
+    <div id="map"></div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
+  <script src="js/api.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/experience.js"></script>
+</body>
+</html>
