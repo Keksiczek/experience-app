@@ -1,5 +1,5 @@
 (function () {
-  function escapeHtml(str) {
+  const escapeHtml = (window.ui && window.ui.escapeHtml) || function (str) {
     if (str == null) return '';
     return String(str)
       .replace(/&/g, '&amp;')
@@ -7,6 +7,15 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  };
+
+  function cssVar(name, fallback) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 
   function firstSentence(text) {
@@ -94,7 +103,7 @@
         const linePoints = latlngs.slice();
         if (style === 'loop') linePoints.push(latlngs[0]);
         routeLine = L.polyline(linePoints, {
-          color: '#58a6ff',
+          color: cssVar('--accent', '#58a6ff'),
           weight: 3,
           opacity: 0.7,
           dashArray: '6 6',

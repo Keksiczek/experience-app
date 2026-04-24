@@ -1,38 +1,8 @@
 (function () {
-  function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  const { escapeHtml, statusLabel, fallbackLabel, pluralCz, toast } = window.ui;
 
   function getQueryParam(name) {
     return new URLSearchParams(window.location.search).get(name);
-  }
-
-  function statusLabel(s) {
-    switch (s) {
-      case 'pending': return 'čeká';
-      case 'running': return 'běží';
-      case 'completed': return 'hotovo';
-      case 'completed_with_warnings': return 'hotovo (varování)';
-      case 'failed': return 'chyba';
-      default: return s || '';
-    }
-  }
-
-  function fallbackLabel(fl) {
-    switch (fl) {
-      case 'FULL': return 'Plný kontext';
-      case 'PARTIAL_MEDIA': return 'Částečná média';
-      case 'NO_MEDIA': return 'Bez média';
-      case 'LOW_CONTEXT': return 'Omezený kontext';
-      case 'MINIMAL': return 'Minimální data';
-      default: return fl || '';
-    }
   }
 
   function parseWikimediaFilename(mediaId) {
@@ -60,9 +30,11 @@
       <div class="metric">
         <div class="metric-label">
           <span>${escapeHtml(label)}</span>
-          <span>${pct}%</span>
+          <span class="metric-value">${pct}%</span>
         </div>
-        <div class="metric-bar">
+        <div class="metric-bar" role="progressbar"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"
+             aria-label="${escapeHtml(label)}">
           <div class="metric-fill ${cls}" style="width:${pct}%"></div>
         </div>
       </div>
@@ -93,32 +65,40 @@
     if (thumb) {
       mediaHtml = `<img class="stop-media" src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.style.display='none'"/>`;
     } else if (stop.fallback_level === 'NO_MEDIA') {
-      mediaHtml = `<div class="stop-media-placeholder">Bez média</div>`;
+      mediaHtml = `<div class="stop-media-placeholder" aria-hidden="true">Bez média</div>`;
     }
 
     const warningHtml = narrationConf < 0.5
       ? `<div class="stop-warning">⚠️ Omezený kontext (confidence ${narrationConf.toFixed(2)})</div>`
       : '';
 
-    const llmBadge = stop.used_llm_narration ? `<span class="llm-badge">AI</span>` : '';
+    const llmBadge = stop.used_llm_narration ? `<span class="llm-badge" title="Generováno LLM">AI</span>` : '';
 
-    const fallbackBadge = `
-      <span title="${escapeHtml(fallbackLabel(stop.fallback_level))}">
-        <span class="fallback-dot ${escapeHtml(stop.fallback_level || 'MINIMAL')}"></span>
-        ${escapeHtml(stop.fallback_level || '')}
-      </span>
-    `;
+    const fbLabel = fallbackLabel(stop.fallback_level);
+    const fallbackBadge = stop.fallback_level
+      ? `
+        <span title="${escapeHtml(fbLabel)}" aria-label="${escapeHtml(fbLabel)}">
+          <span class="fallback-dot ${escapeHtml(stop.fallback_level)}" aria-hidden="true"></span>
+          ${escapeHtml(stop.fallback_level)}
+        </span>
+      `
+      : '';
 
     return `
-      <div class="stop-card" id="stop-${escapeHtml(stop.id)}" data-stop-id="${escapeHtml(stop.id)}" tabindex="0">
+      <div class="stop-card"
+           id="stop-${escapeHtml(stop.id)}"
+           data-stop-id="${escapeHtml(stop.id)}"
+           role="button"
+           tabindex="0"
+           aria-label="Zastávka ${stopNum}: ${escapeHtml(title)}">
         ${mediaHtml}
         <h3>${stopNum}. ${escapeHtml(title)}</h3>
-        <div class="stop-name">${escapeHtml(stop.name || '')}</div>
+        ${stop.name ? `<div class="stop-name">${escapeHtml(stop.name)}</div>` : ''}
         ${stop.why_here ? `<div class="stop-why"><strong>Proč zde:</strong> ${escapeHtml(stop.why_here)}</div>` : ''}
         ${stop.narration ? `<div class="stop-narration">${escapeHtml(stop.narration)}</div>` : ''}
         ${warningHtml}
         <div class="stop-footer">
-          <span class="score-star">★</span> <span>${score}</span>
+          <span title="Skóre"><span class="score-star" aria-hidden="true">★</span> ${score}</span>
           ${fallbackBadge}
           ${llmBadge}
         </div>
@@ -128,7 +108,7 @@
 
   function renderSkeletonStops(count = 3) {
     const one = `
-      <div class="skeleton">
+      <div class="skeleton" aria-hidden="true">
         <div class="skeleton-line long"></div>
         <div class="skeleton-line med"></div>
         <div class="skeleton-line short"></div>
@@ -141,7 +121,9 @@
     if (!metadata) return '';
     const calls = metadata.provider_calls || {};
     const entries = Object.entries(calls);
-    if (entries.length === 0) return '<div style="color:var(--text-secondary);font-size:12px;">Žádná data.</div>';
+    if (entries.length === 0) {
+      return '<div class="provider-empty">Žádná data.</div>';
+    }
     const rows = entries.map(
       ([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`,
     ).join('');
@@ -157,8 +139,13 @@
     const header = document.getElementById('detail-header');
     const metrics = document.getElementById('detail-metrics');
     const stopsList = document.getElementById('stops-list');
+    const stopsCount = document.getElementById('stops-count');
     const providerDetails = document.getElementById('provider-details-body');
     if (!header || !metrics || !stopsList) return;
+
+    document.title = exp.prompt
+      ? `${exp.prompt.slice(0, 60)} — Experience`
+      : 'Experience — Detail';
 
     const badges = [
       `<span class="badge badge-${escapeHtml(exp.job_status)}">${escapeHtml(statusLabel(exp.job_status))}</span>`,
@@ -179,16 +166,17 @@
     const qm = exp.quality_metrics || {};
     const meta = exp.generation_metadata || null;
 
+    const metricTags = [routeStyleTag(meta && meta.route_style_used), llmTag(meta)]
+      .filter(Boolean)
+      .join('');
+
     metrics.innerHTML = `
       <div class="metrics-box">
         ${renderMetricBar('Kvalita narace', qm.narration_confidence)}
         ${renderMetricBar('Koherence trasy', qm.route_coherence_score)}
         ${renderMetricBar('Pokrytí médii', qm.imagery_coverage_ratio)}
         ${renderMetricBar('Diverzita míst', qm.diversity_score)}
-        <div class="meta-tags">
-          ${routeStyleTag(meta && meta.route_style_used)}
-          ${llmTag(meta)}
-        </div>
+        ${metricTags ? `<div class="meta-tags">${metricTags}</div>` : ''}
       </div>
     `;
 
@@ -196,22 +184,31 @@
       (a, b) => (a.stop_order ?? a.order ?? 0) - (b.stop_order ?? b.order ?? 0),
     );
 
+    if (stopsCount) {
+      const n = sortedStops.length;
+      stopsCount.textContent = n
+        ? `${n} ${pluralCz(n, 'zastávka', 'zastávky', 'zastávek')}`
+        : '';
+    }
+
     if (sortedStops.length === 0) {
-      stopsList.innerHTML = `<div class="history-empty">Žádné zastávky${exp.error_message ? ` — ${escapeHtml(exp.error_message)}` : ''}.</div>`;
+      const errMsg = exp.error_message ? ` — ${escapeHtml(exp.error_message)}` : '';
+      const running = exp.job_status === 'pending' || exp.job_status === 'running';
+      stopsList.innerHTML = running
+        ? renderSkeletonStops(3)
+        : `<div class="history-empty">Žádné zastávky${errMsg}.</div>`;
     } else {
       stopsList.innerHTML = sortedStops.map((s, i) => renderStopCard(s, i)).join('');
     }
 
     if (providerDetails) providerDetails.innerHTML = renderProviderTable(meta);
 
-    // Map
     if (mapInstance) {
       mapInstance.setExperience(exp, {
         onMarkerClick: (stopId) => activateStop(stopId, { scroll: true, openMarker: false }),
       });
     }
 
-    // Bind stop card interactions
     stopsList.querySelectorAll('.stop-card').forEach((card) => {
       const id = card.getAttribute('data-stop-id');
       const activate = () => activateStop(id, { scroll: false, openMarker: true, mapInstance });
@@ -221,7 +218,6 @@
       });
     });
 
-    // Bind "Zobrazit detail" inside map popups (event delegation on map container)
     const mapEl = document.getElementById('map');
     if (mapEl && !mapEl._delegatedBound) {
       mapEl.addEventListener('click', (ev) => {
@@ -235,7 +231,6 @@
     }
   }
 
-  let currentActiveId = null;
   let currentMapInstance = null;
 
   function activateStop(stopId, opts = {}) {
@@ -246,7 +241,6 @@
       card.classList.add('active');
       if (opts.scroll) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    currentActiveId = stopId;
     if (opts.openMarker && (opts.mapInstance || currentMapInstance)) {
       (opts.mapInstance || currentMapInstance).focusStop(stopId);
     }
@@ -254,17 +248,15 @@
 
   function bindFooter(exp) {
     const copyBtn = document.getElementById('copy-json-btn');
-    if (copyBtn) {
-      copyBtn.onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(JSON.stringify(exp, null, 2));
-          copyBtn.textContent = '✓ Zkopírováno';
-          setTimeout(() => { copyBtn.textContent = '📋 Kopírovat JSON'; }, 2000);
-        } catch (err) {
-          alert('Nepodařilo se zkopírovat: ' + err.message);
-        }
-      };
-    }
+    if (!copyBtn) return;
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(exp, null, 2));
+        toast('JSON zkopírován do schránky', { variant: 'success' });
+      } catch (err) {
+        toast(`Kopírování selhalo: ${err.message}`, { variant: 'danger' });
+      }
+    };
   }
 
   async function init() {
@@ -273,20 +265,32 @@
     const header = document.getElementById('detail-header');
 
     if (!jobId) {
-      if (header) header.innerHTML = '<div class="error-box">Chybí parametr <code>id</code> v URL.</div>';
+      if (header) {
+        header.innerHTML = `
+          <div class="error-box" role="alert">
+            <div class="error-body">
+              Chybí parametr <code>id</code> v URL.
+              <div class="error-action"><a href="index.html">← Zpět na hlavní stránku</a></div>
+            </div>
+          </div>
+        `;
+      }
       return;
     }
 
     if (stopsList) stopsList.innerHTML = renderSkeletonStops(3);
 
-    currentMapInstance = window.map_ui.initMap('map');
+    try {
+      currentMapInstance = window.map_ui.initMap('map');
+    } catch (err) {
+      console.error('Map init failed:', err);
+    }
 
     try {
       const exp = await window.api.getExperience(jobId);
       renderExperience(exp, currentMapInstance);
       bindFooter(exp);
 
-      // If the job is still running, keep polling to auto-refresh.
       if (exp.job_status === 'pending' || exp.job_status === 'running') {
         window.api.pollUntilDone(jobId, (updated) => {
           renderExperience(updated, currentMapInstance);
@@ -296,10 +300,20 @@
           bindFooter(final);
         }).catch((err) => {
           console.error('Polling error:', err);
+          toast(`Chyba při obnově: ${err.message}`, { variant: 'danger' });
         });
       }
     } catch (err) {
-      if (header) header.innerHTML = `<div class="error-box">Nepodařilo se načíst experience: ${escapeHtml(err.message)}</div>`;
+      if (header) {
+        header.innerHTML = `
+          <div class="error-box" role="alert">
+            <div class="error-body">
+              Nepodařilo se načíst experience: ${escapeHtml(err.message)}
+              <div class="error-action"><a href="index.html">← Zpět na hlavní stránku</a></div>
+            </div>
+          </div>
+        `;
+      }
       if (stopsList) stopsList.innerHTML = '';
     }
   }

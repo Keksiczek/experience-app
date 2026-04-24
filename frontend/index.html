@@ -3,53 +3,79 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0d1117" />
   <title>Experience App — Generátor</title>
   <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
-  <header class="app-header">
+  <header class="app-header" role="banner">
     <div>
       <h1>Experience App <span class="subtitle">kurátorovaný geo-prolog</span></h1>
     </div>
   </header>
 
-  <main class="main-layout">
-    <section class="panel generator">
-      <h2>Generátor</h2>
-      <textarea
-        id="prompt-input"
-        placeholder="Napiš, co chceš prozkoumat… např. Průmyslové ruiny v okolí Prahy"
-        maxlength="2000"
-      ></textarea>
-      <div class="examples" id="generator-examples">
-        Příklady:
-        <span data-example="Průmyslové ruiny v okolí Prahy">Průmyslové ruiny v okolí Prahy</span>
-        <span data-example="Malebná krajina jižní Moravy">Malebná krajina jižní Moravy</span>
-        <span data-example="Opuštěná místa Středočeského kraje">Opuštěná místa Středočeského kraje</span>
+  <main class="page main-layout" role="main">
+    <section class="panel generator" aria-labelledby="generator-heading">
+      <h2 id="generator-heading">Generátor</h2>
+
+      <div class="field">
+        <label for="prompt-input" class="visually-hidden">Prompt experience</label>
+        <textarea
+          id="prompt-input"
+          name="prompt"
+          placeholder="Napiš, co chceš prozkoumat… např. Průmyslové ruiny v okolí Prahy"
+          maxlength="2000"
+          aria-describedby="prompt-help"
+        ></textarea>
+        <div class="field-meta" id="prompt-help">
+          <span class="hint">Stiskni <kbd>Ctrl</kbd> + <kbd>Enter</kbd> pro generování</span>
+          <span id="char-count" class="char-count" aria-live="polite">0 / 2000</span>
+        </div>
       </div>
-      <button id="generate-btn" class="btn">Generovat experience</button>
-      <div id="generator-status" class="generator-status hidden"></div>
+
+      <div class="examples" id="generator-examples" aria-label="Příklady promptů">
+        <span class="examples-label">Příklady:</span>
+        <button type="button" class="chip" data-example="Průmyslové ruiny v okolí Prahy">Průmyslové ruiny v okolí Prahy</button>
+        <button type="button" class="chip" data-example="Malebná krajina jižní Moravy">Malebná krajina jižní Moravy</button>
+        <button type="button" class="chip" data-example="Opuštěná místa Středočeského kraje">Opuštěná místa Středočeského kraje</button>
+      </div>
+
+      <div class="generator-actions">
+        <button id="generate-btn" type="button" class="btn">Generovat experience</button>
+      </div>
+
+      <div
+        id="generator-status"
+        class="generator-status hidden"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
     </section>
 
-    <section class="panel history">
-      <h2>Poslední experiences</h2>
-      <div id="history-list" class="history-list">
-        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line med"></div></div>
-        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line short"></div></div>
-        <div class="skeleton"><div class="skeleton-line med"></div><div class="skeleton-line short"></div></div>
+    <section class="panel history" aria-labelledby="history-heading">
+      <h2 id="history-heading">Poslední experiences</h2>
+      <div id="history-list" class="history-list" aria-live="polite">
+        <div class="skeleton" aria-hidden="true"><div class="skeleton-line long"></div><div class="skeleton-line med"></div></div>
+        <div class="skeleton" aria-hidden="true"><div class="skeleton-line long"></div><div class="skeleton-line short"></div></div>
+        <div class="skeleton" aria-hidden="true"><div class="skeleton-line med"></div><div class="skeleton-line short"></div></div>
       </div>
     </section>
   </main>
 
-  <footer class="app-footer">
+  <footer class="app-footer" role="contentinfo">
     <span>
-      <span id="health-dot" class="health-dot"></span>
+      <span id="health-dot" class="health-dot" aria-hidden="true"></span>
       <span id="health-text">Zjišťuji stav…</span>
     </span>
-    <span id="health-ollama" style="display:none;"></span>
+    <span id="health-ollama" class="hidden"></span>
   </footer>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
   <script src="js/history.js"></script>
   <script src="js/generator.js"></script>
 </body>
