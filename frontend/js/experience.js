@@ -212,6 +212,25 @@
 
     if (providerDetails) providerDetails.innerHTML = renderProviderTable(meta);
 
+    // Show "Spustit experience" once we know the experience has stops.
+    const playBtn = document.getElementById('play-btn');
+    if (playBtn) {
+      if (sortedStops.length > 0) {
+        playBtn.classList.remove('hidden');
+        playBtn.onclick = () => enterTheater();
+      } else {
+        playBtn.classList.add('hidden');
+        playBtn.onclick = null;
+      }
+    }
+
+    lastExperience = exp;
+    lastSortedStops = sortedStops;
+
+    // If theater is open, re-render its current stop with the latest data
+    // (e.g. polling completed mid-presentation).
+    if (theaterActive) renderTheaterStage();
+
     if (mapInstance) {
       try {
         mapInstance.setExperience(exp, {
@@ -253,6 +272,16 @@
   let orderedStopIds = [];
   let mapFallbackActive = false;
 
+  // Theater mode state
+  let theaterActive = false;
+  let theaterIndex = 0;
+  let autoplayTimer = null;
+  let ttsEnabled = false;
+  let lastExperience = null;
+  let lastSortedStops = [];
+
+  const AUTOPLAY_INTERVAL_MS = 12000;
+
   function renderMapFallback(err) {
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
@@ -287,6 +316,239 @@
       })
       .join('');
     list.innerHTML = items || '<li class="map-fallback-empty">Bez souřadnic.</li>';
+  }
+
+  // ── Theater mode ─────────────────────────────────────────────────────────
+
+  function renderTheaterStopCard(stop, idx, total) {
+    const stopNum = idx + 1;
+    const title = stop.short_title || stop.name || `Zastávka ${stopNum}`;
+    const thumb = wikimediaThumbUrl(stop.media_id, 1200);
+    const heroInner = thumb
+      ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'theater-hero-fallback\\'>Bez obrázku</div>'+this.parentNode.querySelector('.theater-hero-overlay').outerHTML"/>`
+      : `<div class="theater-hero-fallback">Bez obrázku</div>`;
+
+    const ticks = Array.from({ length: total }, (_, i) => {
+      let cls = '';
+      if (i < idx) cls = 'done';
+      else if (i === idx) cls = 'current';
+      return `<span class="theater-progress-tick ${cls}"></span>`;
+    }).join('');
+
+    const fbLabel = fallbackLabel(stop.fallback_level);
+    const llmTagHtml = stop.used_llm_narration
+      ? '<span class="meta-tag">🤖 AI narace</span>'
+      : '';
+
+    return `
+      <article class="theater-stop">
+        <div class="theater-progress" aria-hidden="true">${ticks}</div>
+        <div class="theater-hero">
+          ${heroInner}
+          <div class="theater-hero-overlay">
+            <div class="theater-hero-step">Zastávka ${stopNum} / ${total}</div>
+            <h2 class="theater-hero-title">${escapeHtml(title)}</h2>
+            ${stop.name && stop.name !== title ? `<div class="theater-hero-place">${escapeHtml(stop.name)}</div>` : ''}
+          </div>
+        </div>
+        ${stop.why_here ? `<div class="theater-why">${escapeHtml(stop.why_here)}</div>` : ''}
+        ${stop.narration ? `<div class="theater-narration">${escapeHtml(stop.narration)}</div>` : ''}
+        <div class="theater-meta">
+          ${stop.fallback_level ? `<span class="meta-tag" title="${escapeHtml(fbLabel)}"><span class="fallback-dot ${escapeHtml(stop.fallback_level)}" aria-hidden="true"></span> ${escapeHtml(fbLabel)}</span>` : ''}
+          ${llmTagHtml}
+          ${typeof stop.lat === 'number' ? `<span class="meta-tag">${stop.lat.toFixed(4)}, ${stop.lon.toFixed(4)}</span>` : ''}
+        </div>
+        <div class="theater-nav-bottom">
+          <button type="button" class="btn btn-secondary btn-sm" data-theater-nav="prev"${idx === 0 ? ' disabled' : ''}>← Předchozí</button>
+          <button type="button" class="btn btn-sm" data-theater-nav="next"${idx === total - 1 ? ' disabled' : ''}>Další →</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderTheaterStage() {
+    const stage = document.getElementById('theater-stage');
+    const counter = document.getElementById('theater-counter');
+    if (!stage || !lastSortedStops.length) return;
+
+    theaterIndex = Math.max(0, Math.min(theaterIndex, lastSortedStops.length - 1));
+    const stop = lastSortedStops[theaterIndex];
+    const total = lastSortedStops.length;
+
+    stage.hidden = false;
+    stage.innerHTML = renderTheaterStopCard(stop, theaterIndex, total);
+
+    if (counter) counter.textContent = `${theaterIndex + 1} / ${total}`;
+
+    stage.querySelectorAll('[data-theater-nav]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('data-theater-nav') === 'prev') theaterPrev();
+        else theaterNext();
+      });
+    });
+
+    // Track which stop is "current" so j/k in theater stays in sync.
+    currentActiveId = stop.id;
+
+    // FlyTo the current stop on the map (smooth cinematic move).
+    if (currentMapInstance && typeof stop.lat === 'number' && typeof stop.lon === 'number') {
+      currentMapInstance.focusStop(stop.id, { duration: 1.4, openPopup: false, zoom: 12 });
+    }
+
+    // Speak the narration if TTS is enabled.
+    if (ttsEnabled) speakStop(stop);
+  }
+
+  function enterTheater(startId) {
+    if (!lastSortedStops.length) {
+      toast('Žádné zastávky k přehrání.', { variant: 'danger' });
+      return;
+    }
+    theaterActive = true;
+    document.body.classList.add('theater-active');
+    document.getElementById('theater-controls').hidden = false;
+
+    const idx = startId ? orderedStopIds.indexOf(startId) : -1;
+    theaterIndex = idx >= 0 ? idx : 0;
+
+    renderTheaterStage();
+  }
+
+  function exitTheater() {
+    if (!theaterActive) return;
+    theaterActive = false;
+    stopAutoplay();
+    stopTTS();
+    document.body.classList.remove('theater-active');
+    const controls = document.getElementById('theater-controls');
+    if (controls) controls.hidden = true;
+    const stage = document.getElementById('theater-stage');
+    if (stage) {
+      stage.hidden = true;
+      stage.innerHTML = '';
+    }
+    // Keep autoplay button visual state in sync.
+    setAutoplayPressed(false);
+    setTTSPressed(false);
+
+    // Restore highlight on the same stop in the regular list view.
+    if (currentActiveId) {
+      activateStop(currentActiveId, { scroll: true, openMarker: false });
+    }
+  }
+
+  function theaterNext() {
+    if (!lastSortedStops.length) return;
+    if (theaterIndex >= lastSortedStops.length - 1) {
+      // End of presentation — stop autoplay but stay on last slide.
+      stopAutoplay();
+      setAutoplayPressed(false);
+      return;
+    }
+    theaterIndex += 1;
+    renderTheaterStage();
+  }
+
+  function theaterPrev() {
+    if (!lastSortedStops.length) return;
+    if (theaterIndex <= 0) return;
+    theaterIndex -= 1;
+    renderTheaterStage();
+  }
+
+  function setAutoplayPressed(on) {
+    const btn = document.getElementById('theater-autoplay');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? '⏸ Auto' : '▶ Auto';
+  }
+
+  function startAutoplay() {
+    stopAutoplay();
+    autoplayTimer = setInterval(() => {
+      if (theaterIndex >= lastSortedStops.length - 1) {
+        stopAutoplay();
+        setAutoplayPressed(false);
+        return;
+      }
+      theaterNext();
+    }, AUTOPLAY_INTERVAL_MS);
+  }
+
+  function stopAutoplay() {
+    if (autoplayTimer) {
+      clearInterval(autoplayTimer);
+      autoplayTimer = null;
+    }
+  }
+
+  function toggleAutoplay() {
+    if (autoplayTimer) {
+      stopAutoplay();
+      setAutoplayPressed(false);
+    } else {
+      startAutoplay();
+      setAutoplayPressed(true);
+    }
+  }
+
+  function setTTSPressed(on) {
+    const btn = document.getElementById('theater-tts');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? '🔇 Ticho' : '🔊 Číst';
+  }
+
+  function speakStop(stop) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel(); // cut whatever was playing before
+    const parts = [
+      stop.short_title || stop.name || '',
+      stop.why_here || '',
+      stop.narration || '',
+    ].filter(Boolean).join('. ');
+    if (!parts.trim()) return;
+    const utt = new SpeechSynthesisUtterance(parts);
+    utt.lang = 'cs-CZ';
+    utt.rate = 0.95;
+    utt.pitch = 1.0;
+    // Pick a Czech voice if one is available.
+    const voices = synth.getVoices();
+    const cz = voices.find((v) => /^cs/i.test(v.lang));
+    if (cz) utt.voice = cz;
+    synth.speak(utt);
+  }
+
+  function stopTTS() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  function toggleTTS() {
+    if (!('speechSynthesis' in window)) {
+      toast('Čtení nahlas není v tomto prohlížeči podporováno.', { variant: 'danger' });
+      return;
+    }
+    ttsEnabled = !ttsEnabled;
+    setTTSPressed(ttsEnabled);
+    if (ttsEnabled && lastSortedStops[theaterIndex]) {
+      speakStop(lastSortedStops[theaterIndex]);
+    } else {
+      stopTTS();
+    }
+  }
+
+  function bindTheaterControls() {
+    const exitBtn = document.getElementById('theater-exit');
+    const prevBtn = document.getElementById('theater-prev');
+    const nextBtn = document.getElementById('theater-next');
+    const auto = document.getElementById('theater-autoplay');
+    const tts = document.getElementById('theater-tts');
+    if (exitBtn) exitBtn.addEventListener('click', exitTheater);
+    if (prevBtn) prevBtn.addEventListener('click', theaterPrev);
+    if (nextBtn) nextBtn.addEventListener('click', theaterNext);
+    if (auto) auto.addEventListener('click', toggleAutoplay);
+    if (tts) tts.addEventListener('click', toggleTTS);
   }
 
   function activateStop(stopId, opts = {}) {
@@ -325,6 +587,39 @@
     document.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (isTextInputFocused()) return;
+
+      if (theaterActive) {
+        switch (ev.key) {
+          case 'ArrowRight':
+          case 'j':
+          case 'ArrowDown':
+            ev.preventDefault();
+            theaterNext();
+            return;
+          case 'ArrowLeft':
+          case 'k':
+          case 'ArrowUp':
+            ev.preventDefault();
+            theaterPrev();
+            return;
+          case ' ':
+            ev.preventDefault();
+            toggleAutoplay();
+            return;
+          case 't':
+          case 'T':
+            ev.preventDefault();
+            toggleTTS();
+            return;
+          case 'Escape':
+            ev.preventDefault();
+            exitTheater();
+            return;
+          default:
+            return;
+        }
+      }
+
       switch (ev.key) {
         case 'j':
         case 'ArrowDown':
@@ -384,6 +679,7 @@
     if (stopsList) stopsList.innerHTML = renderSkeletonStops(3);
 
     bindHotkeys();
+    bindTheaterControls();
 
     try {
       currentMapInstance = window.map_ui.initMap('map');

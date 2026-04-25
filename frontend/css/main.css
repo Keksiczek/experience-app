@@ -206,6 +206,17 @@ button {
   }
 }
 
+.app-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+#play-btn {
+  padding: 8px 14px;
+  font-size: var(--fs-md);
+}
+
 /* =============================================================
    Main layouts
    ============================================================= */
@@ -1357,4 +1368,325 @@ body.detail-page {
 
 .toast.toast-danger {
   border-color: var(--danger);
+}
+
+/* =============================================================
+   Basemap switcher (top-right corner of #map)
+   ============================================================= */
+
+.basemap-control {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  background: rgba(22, 27, 34, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  z-index: 500;
+  backdrop-filter: blur(4px);
+}
+
+.basemap-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.basemap-btn:hover {
+  color: var(--text-primary);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.basemap-btn.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+@media (max-width: 640px) {
+  .basemap-control {
+    top: var(--space-2);
+    right: var(--space-2);
+  }
+  .basemap-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+}
+
+/* =============================================================
+   Theater mode
+   =============================================================
+   When body has .theater-active, the detail panel is taken over by a
+   single full-bleed stop card and a floating control bar appears at the
+   top.  The map stays visible on the right (or on top, on mobile) and
+   flyTo's between stops as the user navigates.
+   ============================================================= */
+
+.theater-stage {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+body.theater-active .app-header,
+body.theater-active #detail-header,
+body.theater-active #detail-metrics,
+body.theater-active .stops-header,
+body.theater-active #stops-list,
+body.theater-active .detail-footer {
+  display: none !important;
+}
+
+body.theater-active .detail-layout {
+  height: 100vh;
+}
+
+body.theater-active .detail-panel {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+body.theater-active .theater-stage {
+  display: flex;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-top: 72px; /* room for floating controls */
+}
+
+body.theater-active #theater-controls {
+  display: flex !important;
+}
+
+.theater-controls {
+  position: fixed;
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(22, 27, 34, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  z-index: 1100;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.theater-btn {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.theater-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.theater-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.theater-btn-exit {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theater-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.theater-counter {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  min-width: 56px;
+  text-align: center;
+}
+
+.theater-spacer {
+  flex: 1 1 auto;
+}
+
+/* Stage content */
+
+.theater-stop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.theater-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-elevated), var(--bg-card));
+  border: 1px solid var(--border);
+}
+
+.theater-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.theater-hero-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--fs-2xl);
+  letter-spacing: 0.3px;
+}
+
+.theater-hero-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  background: linear-gradient(
+    to top,
+    rgba(13, 17, 23, 0.92) 0%,
+    rgba(13, 17, 23, 0.6) 60%,
+    transparent 100%
+  );
+  color: white;
+}
+
+.theater-hero-step {
+  font-size: var(--fs-sm);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.theater-hero-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 4px 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.theater-hero-place {
+  color: rgba(230, 237, 243, 0.85);
+  font-size: var(--fs-base);
+}
+
+.theater-why {
+  font-size: var(--fs-2xl);
+  line-height: 1.5;
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent-tint-weak);
+  border-radius: var(--radius-sm);
+}
+
+.theater-narration {
+  font-size: var(--fs-xl);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.theater-meta {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.theater-progress {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--space-2);
+}
+
+.theater-progress-tick {
+  flex: 1 1 0;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  transition: background var(--transition-med);
+}
+
+.theater-progress-tick.done {
+  background: var(--accent);
+}
+
+.theater-progress-tick.current {
+  background: var(--accent);
+  box-shadow: 0 0 4px rgba(88, 166, 255, 0.6);
+}
+
+.theater-nav-bottom {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  body.theater-active .detail-layout {
+    grid-template-rows: 1fr 240px;
+  }
+  .theater-stage {
+    padding: var(--space-4);
+    padding-top: 64px;
+  }
+  .theater-hero-title {
+    font-size: 22px;
+  }
+  .theater-why {
+    font-size: var(--fs-lg);
+  }
+  .theater-narration {
+    font-size: var(--fs-lg);
+  }
+  .theater-controls {
+    flex-wrap: wrap;
+  }
 }

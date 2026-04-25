@@ -24,6 +24,53 @@
     return (m ? m[0] : text).trim();
   }
 
+  // Three free-tier tile layers. Each is rendered with the same coordinate
+  // grid so toggling does not require re-fitting bounds.
+  const BASE_LAYERS = {
+    osm: {
+      label: 'Mapa',
+      title: 'Standardní mapa (OpenStreetMap)',
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      options: {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors',
+      },
+    },
+    satellite: {
+      label: 'Satelit',
+      title: 'Satelitní snímky (Esri World Imagery)',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      options: {
+        maxZoom: 19,
+        attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+      },
+    },
+    terrain: {
+      label: 'Terén',
+      title: 'Topografická mapa (OpenTopoMap)',
+      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      options: {
+        maxZoom: 17,
+        attribution:
+          '© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors, SRTM',
+      },
+    },
+  };
+
+  const STORAGE_KEY = 'experience.basemap';
+
+  function readPreferredBaseLayer() {
+    try {
+      const v = window.localStorage && localStorage.getItem(STORAGE_KEY);
+      if (v && BASE_LAYERS[v]) return v;
+    } catch (_) { /* ignore */ }
+    return 'osm';
+  }
+
+  function persistBaseLayer(name) {
+    try { localStorage.setItem(STORAGE_KEY, name); } catch (_) { /* ignore */ }
+  }
+
   function makeMarkerIcon(stopOrderLabel, fallbackLevel) {
     const cls = `stop-marker ${fallbackLevel || 'MINIMAL'}`;
     return L.divIcon({
@@ -34,10 +81,32 @@
     });
   }
 
-  /**
-   * Initialise Leaflet map into the #map container.
-   * Returns an object { setExperience(exp, { onMarkerClick }), focusStop(stopId) }.
-   */
+  function buildBasemapControl(initial, onSelect) {
+    const wrap = document.createElement('div');
+    wrap.className = 'basemap-control';
+    wrap.setAttribute('role', 'group');
+    wrap.setAttribute('aria-label', 'Mapový podklad');
+    wrap.innerHTML = Object.entries(BASE_LAYERS)
+      .map(([key, cfg]) => `
+        <button type="button"
+                class="basemap-btn ${key === initial ? 'active' : ''}"
+                data-basemap="${key}"
+                title="${escapeHtml(cfg.title)}"
+                aria-pressed="${key === initial ? 'true' : 'false'}">
+          ${escapeHtml(cfg.label)}
+        </button>
+      `).join('');
+    wrap.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-basemap]');
+      if (!btn) return;
+      const name = btn.getAttribute('data-basemap');
+      onSelect(name);
+    });
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.disableScrollPropagation(wrap);
+    return wrap;
+  }
+
   function initMap(elementId) {
     const el = document.getElementById(elementId);
     if (!el) throw new Error(`Map container '#${elementId}' not found`);
@@ -47,10 +116,28 @@
       attributionControl: true,
     }).setView([49.8, 15.5], 7); // Default: Czechia
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map);
+    let activeBaseLayer = null;
+    let activeBaseLayerName = null;
+
+    function setBaseLayer(name) {
+      const cfg = BASE_LAYERS[name];
+      if (!cfg) return;
+      if (activeBaseLayer) map.removeLayer(activeBaseLayer);
+      activeBaseLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
+      activeBaseLayerName = name;
+      persistBaseLayer(name);
+      el.querySelectorAll('[data-basemap]').forEach((btn) => {
+        const isActive = btn.getAttribute('data-basemap') === name;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    const initial = readPreferredBaseLayer();
+    setBaseLayer(initial);
+
+    const control = buildBasemapControl(initial, setBaseLayer);
+    el.appendChild(control);
 
     const markers = new Map(); // stopId -> marker
     let routeLine = null;
@@ -115,14 +202,37 @@
       }
     }
 
-    function focusStop(stopId) {
+    function focusStop(stopId, opts = {}) {
       const marker = markers.get(stopId);
       if (!marker) return;
-      map.setView(marker.getLatLng(), Math.max(map.getZoom(), 11), { animate: true });
-      marker.openPopup();
+      const ll = marker.getLatLng();
+      const targetZoom = opts.zoom != null ? opts.zoom : Math.max(map.getZoom(), 11);
+      if (opts.animate === false) {
+        map.setView(ll, targetZoom, { animate: false });
+      } else {
+        map.flyTo(ll, targetZoom, { duration: opts.duration || 1.0, easeLinearity: 0.25 });
+      }
+      if (opts.openPopup !== false) marker.openPopup();
     }
 
-    return { map, setExperience, focusStop };
+    function flyToBounds() {
+      const points = Array.from(markers.values()).map((m) => m.getLatLng());
+      if (points.length === 0) return;
+      map.flyToBounds(L.latLngBounds(points), {
+        padding: [40, 40],
+        maxZoom: 13,
+        duration: 0.8,
+      });
+    }
+
+    return {
+      map,
+      setExperience,
+      focusStop,
+      flyToBounds,
+      setBaseLayer,
+      getBaseLayer: () => activeBaseLayerName,
+    };
   }
 
   window.map_ui = { initMap };

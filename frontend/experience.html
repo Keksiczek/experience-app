@@ -17,7 +17,12 @@
     <div>
       <h1>Experience App <span class="subtitle">detail</span></h1>
     </div>
-    <a href="index.html" class="btn btn-secondary btn-sm">← Zpět</a>
+    <div class="app-header-actions">
+      <button id="play-btn" type="button" class="btn hidden" aria-label="Spustit experience v plné obrazovce">
+        ▶ Spustit
+      </button>
+      <a href="index.html" class="btn btn-secondary btn-sm">← Zpět</a>
+    </div>
   </header>
 
   <main class="page detail-layout" role="main">
@@ -49,10 +54,24 @@
           <div id="provider-details-body"></div>
         </details>
       </div>
+
+      <!-- Theater stage (rendered by JS when active) -->
+      <div id="theater-stage" class="theater-stage" hidden></div>
     </aside>
 
     <div id="map" role="region" aria-label="Mapa zastávek"></div>
   </main>
+
+  <!-- Theater control bar (visible only in theater mode) -->
+  <div id="theater-controls" class="theater-controls" hidden>
+    <button id="theater-exit" type="button" class="theater-btn theater-btn-exit" aria-label="Ukončit přehrávání" title="Ukončit (Esc)">×</button>
+    <button id="theater-prev" type="button" class="theater-btn" aria-label="Předchozí zastávka" title="Předchozí (←)">◀</button>
+    <span id="theater-counter" class="theater-counter" aria-live="polite">1 / 1</span>
+    <button id="theater-next" type="button" class="theater-btn" aria-label="Další zastávka" title="Další (→)">▶</button>
+    <span class="theater-spacer"></span>
+    <button id="theater-autoplay" type="button" class="theater-btn theater-toggle" aria-pressed="false" aria-label="Automatický posun" title="Auto (mezerník)">▶ Auto</button>
+    <button id="theater-tts" type="button" class="theater-btn theater-toggle" aria-pressed="false" aria-label="Hlasové čtení" title="Číst nahlas (T)">🔊 Číst</button>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
