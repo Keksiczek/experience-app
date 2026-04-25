@@ -787,6 +787,27 @@ body.detail-page {
   line-height: 1.55;
 }
 
+.trip-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: 6px var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
 /* =============================================================
    Quality metrics
    ============================================================= */
@@ -1013,6 +1034,20 @@ body.detail-page {
   color: var(--text-muted);
   font-size: var(--fs-sm);
   margin-bottom: var(--space-3);
+}
+
+.stop-card .stop-media-external {
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--accent-tint-weak);
+  border-color: rgba(88, 166, 255, 0.4);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.stop-card .stop-media-external:hover {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  text-decoration: none;
 }
 
 .fallback-dot {
@@ -1570,11 +1605,36 @@ body.theater-active #theater-controls {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-xl);
   letter-spacing: 0.3px;
+  background: linear-gradient(135deg, var(--bg-elevated), var(--bg-card));
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.theater-hero-fallback-text {
+  font-size: var(--fs-2xl);
+  color: var(--text-secondary);
+}
+
+.theater-hero-fallback-link {
+  font-size: var(--fs-base);
+  padding: 6px var(--space-3);
+  background: var(--accent-tint-weak);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  transition: background var(--transition-fast);
+}
+
+.theater-hero-fallback-link:hover {
+  background: var(--accent-tint);
+  text-decoration: none;
 }
 
 .theater-hero-overlay {
@@ -1646,10 +1706,18 @@ body.theater-active #theater-controls {
 
 .theater-progress-tick {
   flex: 1 1 0;
-  height: 3px;
+  height: 6px;
   background: var(--border);
+  border: none;
   border-radius: 2px;
-  transition: background var(--transition-med);
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--transition-med), transform var(--transition-fast);
+}
+
+.theater-progress-tick:hover {
+  background: var(--border-strong);
+  transform: scaleY(1.5);
 }
 
 .theater-progress-tick.done {
@@ -1659,6 +1727,11 @@ body.theater-active #theater-controls {
 .theater-progress-tick.current {
   background: var(--accent);
   box-shadow: 0 0 4px rgba(88, 166, 255, 0.6);
+  cursor: default;
+}
+
+.theater-progress-tick.current:hover {
+  transform: none;
 }
 
 .theater-nav-bottom {
@@ -1677,8 +1750,14 @@ body.theater-active #theater-controls {
     padding: var(--space-4);
     padding-top: 64px;
   }
+  .theater-hero {
+    aspect-ratio: 4 / 3;
+  }
   .theater-hero-title {
     font-size: 22px;
+  }
+  .theater-hero-fallback-text {
+    font-size: var(--fs-xl);
   }
   .theater-why {
     font-size: var(--fs-lg);
@@ -1688,5 +1767,28 @@ body.theater-active #theater-controls {
   }
   .theater-controls {
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .theater-controls {
+    gap: 4px;
+    padding: 6px var(--space-2);
+  }
+  .theater-btn {
+    padding: 5px 8px;
+    font-size: var(--fs-sm);
+  }
+  .theater-counter {
+    min-width: 44px;
+    font-size: var(--fs-sm);
+  }
+  .theater-stage {
+    padding: var(--space-3);
+    padding-top: 96px;
+  }
+  .trip-stats {
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 }

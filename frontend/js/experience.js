@@ -1,23 +1,62 @@
 (function () {
   const { escapeHtml, statusLabel, fallbackLabel, pluralCz, toast } = window.ui;
+  const media = window.media;
 
   function getQueryParam(name) {
     return new URLSearchParams(window.location.search).get(name);
   }
 
-  function parseWikimediaFilename(mediaId) {
-    if (!mediaId) return null;
-    if (!mediaId.startsWith('wikimedia:')) return null;
-    let name = mediaId.slice('wikimedia:'.length).trim();
-    if (!name) return null;
-    if (name.toLowerCase().startsWith('file:')) name = name.slice(5);
-    return name;
+  // ── Trip stats ───────────────────────────────────────────────────────────
+  // Naive haversine sum across consecutive stops.  Driving estimate uses a
+  // mixed-rural average of 50 km/h — good enough for a header hint, not for
+  // navigation.
+
+  const AVG_KMH = 50;
+
+  function haversineKm(a, b) {
+    const R = 6371;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const x = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(x));
   }
 
-  function wikimediaThumbUrl(mediaId, width = 400) {
-    const fn = parseWikimediaFilename(mediaId);
-    if (!fn) return null;
-    return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fn)}?width=${width}`;
+  function tripStats(sortedStops, routeStyle) {
+    const pts = (sortedStops || []).filter(
+      (s) => typeof s.lat === 'number' && typeof s.lon === 'number',
+    );
+    if (pts.length < 2) return null;
+    let km = 0;
+    for (let i = 1; i < pts.length; i += 1) km += haversineKm(pts[i - 1], pts[i]);
+    if (routeStyle === 'loop') km += haversineKm(pts[pts.length - 1], pts[0]);
+    const hours = km / AVG_KMH;
+    return { km, hours };
+  }
+
+  function formatKm(km) {
+    if (km < 10) return `${km.toFixed(1)} km`;
+    return `${Math.round(km)} km`;
+  }
+
+  function formatHours(h) {
+    if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+    if (h < 10) return `${h.toFixed(1)} h`;
+    return `${Math.round(h)} h`;
+  }
+
+  function renderTripStats(sortedStops, routeStyle) {
+    const stats = tripStats(sortedStops, routeStyle);
+    if (!stats) return '';
+    return `
+      <div class="trip-stats" title="Vzdušná čára mezi zastávkami; jízda odhadnuta při ~${AVG_KMH} km/h">
+        <span>🛣️ ~${escapeHtml(formatKm(stats.km))}</span>
+        <span>· ⏱️ ~${escapeHtml(formatHours(stats.hours))} jízdy</span>
+      </div>
+    `;
   }
 
   const METRIC_HINTS = {
@@ -69,9 +108,17 @@
     const narrationConf = Number(stop.narration_confidence || 0);
 
     let mediaHtml = '';
-    const thumb = wikimediaThumbUrl(stop.media_id);
+    const thumb = media.thumbUrl(stop.media_id, 400);
+    const ext = media.externalUrl(stop.media_id);
+    const sourceLabel = media.sourceLabel(stop.media_id);
     if (thumb) {
-      mediaHtml = `<img class="stop-media" src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.style.display='none'"/>`;
+      mediaHtml = `<img class="stop-media" src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" data-fallback="img"/>`;
+    } else if (media.isExternalOnly(stop.media_id) && ext) {
+      mediaHtml = `
+        <a class="stop-media-placeholder stop-media-external" href="${escapeHtml(ext)}" target="_blank" rel="noopener noreferrer" aria-label="Otevřít na ${escapeHtml(sourceLabel)}">
+          <span>Otevřít na ${escapeHtml(sourceLabel)} ↗</span>
+        </a>
+      `;
     } else if (stop.fallback_level === 'NO_MEDIA') {
       mediaHtml = `<div class="stop-media-placeholder" aria-hidden="true">Bez média</div>`;
     }
@@ -164,15 +211,20 @@
       .map((f) => `<span class="meta-tag">⚑ ${escapeHtml(f)}</span>`)
       .join('');
 
+    const qm = exp.quality_metrics || {};
+    const meta = exp.generation_metadata || null;
+    const sortedStops = (exp.stops || []).slice().sort(
+      (a, b) => (a.stop_order ?? a.order ?? 0) - (b.stop_order ?? b.order ?? 0),
+    );
+    const tripStatsHtml = renderTripStats(sortedStops, meta && meta.route_style_used);
+
     header.innerHTML = `
       <h1>${escapeHtml(exp.prompt || '(bez promptu)')}</h1>
       <div class="detail-header-badges">${badges}</div>
+      ${tripStatsHtml}
       ${exp.summary ? `<div class="detail-summary">${escapeHtml(exp.summary)}</div>` : ''}
       ${qualityFlags ? `<div class="meta-tags">${qualityFlags}</div>` : ''}
     `;
-
-    const qm = exp.quality_metrics || {};
-    const meta = exp.generation_metadata || null;
 
     const metricTags = [routeStyleTag(meta && meta.route_style_used), llmTag(meta)]
       .filter(Boolean)
@@ -188,9 +240,6 @@
       </div>
     `;
 
-    const sortedStops = (exp.stops || []).slice().sort(
-      (a, b) => (a.stop_order ?? a.order ?? 0) - (b.stop_order ?? b.order ?? 0),
-    );
     orderedStopIds = sortedStops.map((s) => s.id).filter(Boolean);
 
     if (stopsCount) {
@@ -208,6 +257,9 @@
         : `<div class="history-empty">Žádné zastávky${errMsg}.</div>`;
     } else {
       stopsList.innerHTML = sortedStops.map((s, i) => renderStopCard(s, i)).join('');
+      stopsList.querySelectorAll('img[data-fallback="img"]').forEach((img) => {
+        img.addEventListener('error', () => { img.style.display = 'none'; }, { once: true });
+      });
     }
 
     if (providerDetails) providerDetails.innerHTML = renderProviderTable(meta);
@@ -276,11 +328,54 @@
   let theaterActive = false;
   let theaterIndex = 0;
   let autoplayTimer = null;
+  let autoplayActive = false;
   let ttsEnabled = false;
   let lastExperience = null;
   let lastSortedStops = [];
+  let lastFocusedBeforeTheater = null;
 
-  const AUTOPLAY_INTERVAL_MS = 12000;
+  const AUTOPLAY_BASE_MS = 8000;       // floor — even an empty card stays this long
+  const AUTOPLAY_PER_WORD_MS = 320;    // ~190 wpm reading speed
+  const AUTOPLAY_MAX_MS = 30000;       // ceiling per slide
+
+  const PREFS_KEY = 'experience.theaterPrefs';
+
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(PREFS_KEY);
+      if (!raw) return {};
+      return JSON.parse(raw) || {};
+    } catch (_) { return {}; }
+  }
+
+  function savePrefs(patch) {
+    try {
+      const current = loadPrefs();
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ ...current, ...patch }));
+    } catch (_) { /* ignore */ }
+  }
+
+  // ── Speech synthesis voice cache ────────────────────────────────────────
+  // `getVoices()` is async on Chrome — voices may not be available on the
+  // first call.  We cache them and refresh on the `voiceschanged` event.
+
+  let cachedVoices = [];
+  let cachedCsVoice = null;
+
+  function refreshVoices() {
+    if (!window.speechSynthesis) return;
+    cachedVoices = window.speechSynthesis.getVoices() || [];
+    cachedCsVoice = cachedVoices.find((v) => /^cs/i.test(v.lang)) || null;
+  }
+
+  if (window.speechSynthesis) {
+    refreshVoices();
+    if (typeof window.speechSynthesis.addEventListener === 'function') {
+      window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+    } else {
+      window.speechSynthesis.onvoiceschanged = refreshVoices;
+    }
+  }
 
   function renderMapFallback(err) {
     const mapEl = document.getElementById('map');
@@ -323,16 +418,35 @@
   function renderTheaterStopCard(stop, idx, total) {
     const stopNum = idx + 1;
     const title = stop.short_title || stop.name || `Zastávka ${stopNum}`;
-    const thumb = wikimediaThumbUrl(stop.media_id, 1200);
-    const heroInner = thumb
-      ? `<img src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=\\'theater-hero-fallback\\'>Bez obrázku</div>'+this.parentNode.querySelector('.theater-hero-overlay').outerHTML"/>`
-      : `<div class="theater-hero-fallback">Bez obrázku</div>`;
+    const thumb = media.thumbUrl(stop.media_id, 1200);
+    const ext = media.externalUrl(stop.media_id);
+    const sourceLabel = media.sourceLabel(stop.media_id);
+
+    let heroBody = '';
+    if (thumb) {
+      heroBody = `<img class="theater-hero-img" src="${escapeHtml(thumb)}" alt="${escapeHtml(title)}" loading="lazy" data-fallback="hero"/>`;
+    } else if (ext && sourceLabel) {
+      heroBody = `
+        <div class="theater-hero-fallback">
+          <div class="theater-hero-fallback-text">Streetview / fotografie</div>
+          <a class="theater-hero-fallback-link" href="${escapeHtml(ext)}" target="_blank" rel="noopener noreferrer">
+            Otevřít na ${escapeHtml(sourceLabel)} ↗
+          </a>
+        </div>
+      `;
+    } else {
+      heroBody = `<div class="theater-hero-fallback"><div class="theater-hero-fallback-text">Bez obrázku</div></div>`;
+    }
 
     const ticks = Array.from({ length: total }, (_, i) => {
       let cls = '';
       if (i < idx) cls = 'done';
       else if (i === idx) cls = 'current';
-      return `<span class="theater-progress-tick ${cls}"></span>`;
+      return `<button type="button"
+                      class="theater-progress-tick ${cls}"
+                      data-tick-index="${i}"
+                      aria-label="Skočit na zastávku ${i + 1}"
+                      ${i === idx ? 'aria-current="true"' : ''}></button>`;
     }).join('');
 
     const fbLabel = fallbackLabel(stop.fallback_level);
@@ -342,9 +456,9 @@
 
     return `
       <article class="theater-stop">
-        <div class="theater-progress" aria-hidden="true">${ticks}</div>
+        <div class="theater-progress" role="tablist" aria-label="Zastávky">${ticks}</div>
         <div class="theater-hero">
-          ${heroInner}
+          ${heroBody}
           <div class="theater-hero-overlay">
             <div class="theater-hero-step">Zastávka ${stopNum} / ${total}</div>
             <h2 class="theater-hero-title">${escapeHtml(title)}</h2>
@@ -364,6 +478,18 @@
         </div>
       </article>
     `;
+  }
+
+  function replaceHeroWithFallback(stage) {
+    const heroEl = stage.querySelector('.theater-hero');
+    if (!heroEl) return;
+    const img = heroEl.querySelector('.theater-hero-img');
+    if (!img) return;
+    img.remove();
+    const fallback = document.createElement('div');
+    fallback.className = 'theater-hero-fallback';
+    fallback.innerHTML = '<div class="theater-hero-fallback-text">Obrázek se nepodařilo načíst</div>';
+    heroEl.insertBefore(fallback, heroEl.firstChild);
   }
 
   function renderTheaterStage() {
@@ -387,6 +513,21 @@
       });
     });
 
+    stage.querySelectorAll('[data-tick-index]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.getAttribute('data-tick-index'), 10);
+        if (Number.isFinite(i) && i !== theaterIndex) {
+          theaterIndex = i;
+          renderTheaterStage();
+        }
+      });
+    });
+
+    const heroImg = stage.querySelector('.theater-hero-img');
+    if (heroImg) {
+      heroImg.addEventListener('error', () => replaceHeroWithFallback(stage), { once: true });
+    }
+
     // Track which stop is "current" so j/k in theater stays in sync.
     currentActiveId = stop.id;
 
@@ -397,6 +538,11 @@
 
     // Speak the narration if TTS is enabled.
     if (ttsEnabled) speakStop(stop);
+
+    // Reschedule autoplay using the current stop's narration length.
+    if (autoplayActive) scheduleAutoplay(stop);
+
+    stage.scrollTop = 0;
   }
 
   function enterTheater(startId) {
@@ -404,6 +550,7 @@
       toast('Žádné zastávky k přehrání.', { variant: 'danger' });
       return;
     }
+    lastFocusedBeforeTheater = document.activeElement;
     theaterActive = true;
     document.body.classList.add('theater-active');
     document.getElementById('theater-controls').hidden = false;
@@ -411,7 +558,20 @@
     const idx = startId ? orderedStopIds.indexOf(startId) : -1;
     theaterIndex = idx >= 0 ? idx : 0;
 
+    // Restore the user's last theater preferences (autoplay / TTS).
+    const prefs = loadPrefs();
+    autoplayActive = !!prefs.autoplay;
+    ttsEnabled = !!prefs.tts && 'speechSynthesis' in window;
+    setAutoplayPressed(autoplayActive);
+    setTTSPressed(ttsEnabled);
+
     renderTheaterStage();
+
+    // Move focus into the controls so keyboard nav works without a click.
+    const nextBtn = document.getElementById('theater-next');
+    if (nextBtn && typeof nextBtn.focus === 'function') {
+      nextBtn.focus({ preventScroll: true });
+    }
   }
 
   function exitTheater() {
@@ -427,20 +587,30 @@
       stage.hidden = true;
       stage.innerHTML = '';
     }
-    // Keep autoplay button visual state in sync.
-    setAutoplayPressed(false);
-    setTTSPressed(false);
+    // Keep visual state in sync but don't clear persisted prefs.
+    setAutoplayPressed(autoplayActive);
+    setTTSPressed(ttsEnabled);
 
     // Restore highlight on the same stop in the regular list view.
     if (currentActiveId) {
       activateStop(currentActiveId, { scroll: true, openMarker: false });
     }
+
+    // Return focus to the trigger that opened theater (or the play button).
+    const target = lastFocusedBeforeTheater && document.body.contains(lastFocusedBeforeTheater)
+      ? lastFocusedBeforeTheater
+      : document.getElementById('play-btn');
+    if (target && typeof target.focus === 'function') {
+      target.focus({ preventScroll: true });
+    }
+    lastFocusedBeforeTheater = null;
   }
 
   function theaterNext() {
     if (!lastSortedStops.length) return;
     if (theaterIndex >= lastSortedStops.length - 1) {
       // End of presentation — stop autoplay but stay on last slide.
+      autoplayActive = false;
       stopAutoplay();
       setAutoplayPressed(false);
       return;
@@ -460,35 +630,41 @@
     const btn = document.getElementById('theater-autoplay');
     if (!btn) return;
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.textContent = on ? '⏸ Auto' : '▶ Auto';
+    btn.textContent = on ? '⏸ Pauza' : '▶ Auto';
   }
 
-  function startAutoplay() {
-    stopAutoplay();
-    autoplayTimer = setInterval(() => {
-      if (theaterIndex >= lastSortedStops.length - 1) {
-        stopAutoplay();
-        setAutoplayPressed(false);
-        return;
-      }
-      theaterNext();
-    }, AUTOPLAY_INTERVAL_MS);
+  // Pick how long the current slide should stay on screen based on how much
+  // text the user has to read (or have read aloud).
+  function autoplayDelayFor(stop) {
+    const text = `${stop.why_here || ''} ${stop.narration || ''}`.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const ms = AUTOPLAY_BASE_MS + words * AUTOPLAY_PER_WORD_MS;
+    return Math.min(AUTOPLAY_MAX_MS, ms);
+  }
+
+  function scheduleAutoplay(stop) {
+    stopAutoplay(); // single timer at all times
+    if (!autoplayActive) return;
+    if (theaterIndex >= lastSortedStops.length - 1) return;
+    autoplayTimer = setTimeout(() => theaterNext(), autoplayDelayFor(stop));
   }
 
   function stopAutoplay() {
     if (autoplayTimer) {
-      clearInterval(autoplayTimer);
+      clearTimeout(autoplayTimer);
       autoplayTimer = null;
     }
   }
 
   function toggleAutoplay() {
-    if (autoplayTimer) {
-      stopAutoplay();
-      setAutoplayPressed(false);
+    autoplayActive = !autoplayActive;
+    savePrefs({ autoplay: autoplayActive });
+    setAutoplayPressed(autoplayActive);
+    if (autoplayActive) {
+      const stop = lastSortedStops[theaterIndex];
+      if (stop) scheduleAutoplay(stop);
     } else {
-      startAutoplay();
-      setAutoplayPressed(true);
+      stopAutoplay();
     }
   }
 
@@ -513,10 +689,9 @@
     utt.lang = 'cs-CZ';
     utt.rate = 0.95;
     utt.pitch = 1.0;
-    // Pick a Czech voice if one is available.
-    const voices = synth.getVoices();
-    const cz = voices.find((v) => /^cs/i.test(v.lang));
-    if (cz) utt.voice = cz;
+    // Refresh in case voices loaded after this module ran.
+    if (cachedVoices.length === 0) refreshVoices();
+    if (cachedCsVoice) utt.voice = cachedCsVoice;
     synth.speak(utt);
   }
 
@@ -530,9 +705,13 @@
       return;
     }
     ttsEnabled = !ttsEnabled;
+    savePrefs({ tts: ttsEnabled });
     setTTSPressed(ttsEnabled);
     if (ttsEnabled && lastSortedStops[theaterIndex]) {
       speakStop(lastSortedStops[theaterIndex]);
+      if (cachedVoices.length > 0 && !cachedCsVoice) {
+        toast('Český hlas není k dispozici, použije se výchozí.', {});
+      }
     } else {
       stopTTS();
     }
