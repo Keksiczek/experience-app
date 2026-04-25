@@ -2,6 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.api.routes.gpx import build_gpx
 from app.jobs.experience_job import (
     create_job,
     delete_job,
@@ -67,3 +68,28 @@ async def delete_experience(job_id: str) -> Response:
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Experience '{job_id}' nenalezena")
     return Response(status_code=204)
+
+
+@router.get(
+    "/{job_id}/gpx",
+    responses={200: {"content": {"application/gpx+xml": {}}}},
+)
+async def get_experience_gpx(job_id: str) -> Response:
+    experience = await get_experience_async(job_id)
+    if experience is None:
+        raise HTTPException(status_code=404, detail=f"Experience '{job_id}' nenalezena")
+    has_geo = any(
+        s.lat is not None and s.lon is not None for s in experience.stops
+    )
+    if not has_geo:
+        raise HTTPException(
+            status_code=409,
+            detail="Experience nemá žádnou zastávku se souřadnicemi.",
+        )
+    gpx_xml = build_gpx(experience)
+    filename = f"experience-{job_id[:8]}.gpx"
+    return Response(
+        content=gpx_xml,
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -48,6 +48,49 @@
     return `${Math.round(h)} h`;
   }
 
+  // ── External links per stop ─────────────────────────────────────────────
+  // place_id format from the backend is "osm:<type>:<id>" where type is
+  // node/way/relation.  Anything else returns null and the link is skipped.
+
+  function osmEntityLink(placeId) {
+    if (!placeId || typeof placeId !== 'string') return null;
+    const parts = placeId.split(':');
+    if (parts.length !== 3 || parts[0] !== 'osm') return null;
+    const [, type, id] = parts;
+    if (type !== 'node' && type !== 'way' && type !== 'relation') return null;
+    return `https://www.openstreetmap.org/${type}/${encodeURIComponent(id)}`;
+  }
+
+  function osmCoordLink(stop) {
+    if (typeof stop.lat !== 'number' || typeof stop.lon !== 'number') return null;
+    return `https://www.openstreetmap.org/?mlat=${stop.lat}&mlon=${stop.lon}#map=15/${stop.lat}/${stop.lon}`;
+  }
+
+  function renderStopLinks(stop) {
+    const items = [];
+    const osmEntity = osmEntityLink(stop.place_id);
+    if (osmEntity) {
+      items.push(`<a class="stop-link" href="${escapeHtml(osmEntity)}" target="_blank" rel="noopener noreferrer" title="Otevřít prvek na OpenStreetMap">OSM ↗</a>`);
+    }
+    const osmCoord = osmCoordLink(stop);
+    if (osmCoord && !osmEntity) {
+      items.push(`<a class="stop-link" href="${escapeHtml(osmCoord)}" target="_blank" rel="noopener noreferrer" title="Otevřít místo na mapě">Mapa ↗</a>`);
+    }
+    const mediaExt = media.externalUrl(stop.media_id);
+    const mediaSource = media.sourceLabel(stop.media_id);
+    if (mediaExt && mediaSource) {
+      items.push(`<a class="stop-link" href="${escapeHtml(mediaExt)}" target="_blank" rel="noopener noreferrer" title="Otevřít zdroj média">${escapeHtml(mediaSource)} ↗</a>`);
+    }
+    (stop.grounding_sources || []).slice(0, 3).forEach((src) => {
+      if (typeof src === 'string' && /^https?:\/\//.test(src)) {
+        const host = (() => { try { return new URL(src).hostname.replace(/^www\./, ''); } catch (_) { return 'zdroj'; } })();
+        items.push(`<a class="stop-link" href="${escapeHtml(src)}" target="_blank" rel="noopener noreferrer">${escapeHtml(host)} ↗</a>`);
+      }
+    });
+    if (items.length === 0) return '';
+    return `<div class="stop-links">${items.join('')}</div>`;
+  }
+
   function renderTripStats(sortedStops, routeStyle) {
     const stats = tripStats(sortedStops, routeStyle);
     if (!stats) return '';
@@ -157,6 +200,7 @@
           ${fallbackBadge}
           ${llmBadge}
         </div>
+        ${renderStopLinks(stop)}
       </div>
     `;
   }
@@ -340,6 +384,27 @@
 
   const PREFS_KEY = 'experience.theaterPrefs';
 
+  // Selectors of page chrome that must not steal focus while the theater
+  // is on screen.  Using `inert` (modern browsers) hides them from the
+  // accessibility tree and the Tab order in one shot.
+  const THEATER_INERT_SELECTORS = [
+    '.app-header',
+    '#detail-header',
+    '#detail-metrics',
+    '.stops-header',
+    '#stops-list',
+    '.detail-footer',
+  ];
+
+  function setChromeInert(on) {
+    THEATER_INERT_SELECTORS.forEach((sel) => {
+      document.querySelectorAll(sel).forEach((el) => {
+        if (on) el.setAttribute('inert', '');
+        else el.removeAttribute('inert');
+      });
+    });
+  }
+
   function loadPrefs() {
     try {
       const raw = localStorage.getItem(PREFS_KEY);
@@ -472,6 +537,7 @@
           ${llmTagHtml}
           ${typeof stop.lat === 'number' ? `<span class="meta-tag">${stop.lat.toFixed(4)}, ${stop.lon.toFixed(4)}</span>` : ''}
         </div>
+        ${renderStopLinks(stop)}
         <div class="theater-nav-bottom">
           <button type="button" class="btn btn-secondary btn-sm" data-theater-nav="prev"${idx === 0 ? ' disabled' : ''}>← Předchozí</button>
           <button type="button" class="btn btn-sm" data-theater-nav="next"${idx === total - 1 ? ' disabled' : ''}>Další →</button>
@@ -536,11 +602,16 @@
       currentMapInstance.focusStop(stop.id, { duration: 1.4, openPopup: false, zoom: 12 });
     }
 
-    // Speak the narration if TTS is enabled.
-    if (ttsEnabled) speakStop(stop);
-
-    // Reschedule autoplay using the current stop's narration length.
-    if (autoplayActive) scheduleAutoplay(stop);
+    // Speak the narration if TTS is enabled.  When autoplay is also on,
+    // we hand the "advance" decision to TTS so a long narration finishes
+    // before the next slide flies in.  Otherwise fall back to the timer.
+    if (ttsEnabled) {
+      speakStop(stop, autoplayActive ? () => {
+        if (theaterActive && autoplayActive) theaterNext();
+      } : null);
+    } else if (autoplayActive) {
+      scheduleAutoplay(stop);
+    }
 
     stage.scrollTop = 0;
   }
@@ -554,6 +625,7 @@
     theaterActive = true;
     document.body.classList.add('theater-active');
     document.getElementById('theater-controls').hidden = false;
+    setChromeInert(true);
 
     const idx = startId ? orderedStopIds.indexOf(startId) : -1;
     theaterIndex = idx >= 0 ? idx : 0;
@@ -579,6 +651,7 @@
     theaterActive = false;
     stopAutoplay();
     stopTTS();
+    setChromeInert(false);
     document.body.classList.remove('theater-active');
     const controls = document.getElementById('theater-controls');
     if (controls) controls.hidden = true;
@@ -675,23 +748,43 @@
     btn.textContent = on ? '🔇 Ticho' : '🔊 Číst';
   }
 
-  function speakStop(stop) {
+  // Monotonically increases — every call to speakStop() bumps it so an old
+  // utterance's onEnd handler can detect that it's stale and bail out.
+  let speechToken = 0;
+
+  function speakStop(stop, onEnd) {
     const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!synth) {
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+    speechToken += 1;
+    const myToken = speechToken;
     synth.cancel(); // cut whatever was playing before
     const parts = [
       stop.short_title || stop.name || '',
       stop.why_here || '',
       stop.narration || '',
     ].filter(Boolean).join('. ');
-    if (!parts.trim()) return;
+    if (!parts.trim()) {
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
     const utt = new SpeechSynthesisUtterance(parts);
     utt.lang = 'cs-CZ';
     utt.rate = 0.95;
     utt.pitch = 1.0;
-    // Refresh in case voices loaded after this module ran.
     if (cachedVoices.length === 0) refreshVoices();
     if (cachedCsVoice) utt.voice = cachedCsVoice;
+    if (typeof onEnd === 'function') {
+      const guarded = () => {
+        // Ignore the event if a newer slide already started speaking.
+        if (myToken !== speechToken) return;
+        onEnd();
+      };
+      utt.addEventListener('end', guarded);
+      utt.addEventListener('error', guarded);
+    }
     synth.speak(utt);
   }
 
@@ -825,15 +918,31 @@
 
   function bindFooter(exp) {
     const copyBtn = document.getElementById('copy-json-btn');
-    if (!copyBtn) return;
-    copyBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(exp, null, 2));
-        toast('JSON zkopírován do schránky', { variant: 'success' });
-      } catch (err) {
-        toast(`Kopírování selhalo: ${err.message}`, { variant: 'danger' });
+    if (copyBtn) {
+      copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(exp, null, 2));
+          toast('JSON zkopírován do schránky', { variant: 'success' });
+        } catch (err) {
+          toast(`Kopírování selhalo: ${err.message}`, { variant: 'danger' });
+        }
+      };
+    }
+
+    const gpxBtn = document.getElementById('gpx-btn');
+    if (gpxBtn) {
+      const hasGeo = (exp.stops || []).some(
+        (s) => typeof s.lat === 'number' && typeof s.lon === 'number',
+      );
+      if (hasGeo && exp.id) {
+        gpxBtn.href = `${window.api.BASE_URL}/experiences/${encodeURIComponent(exp.id)}/gpx`;
+        gpxBtn.setAttribute('download', `experience-${exp.id.slice(0, 8)}.gpx`);
+        gpxBtn.classList.remove('hidden');
+      } else {
+        gpxBtn.classList.add('hidden');
+        gpxBtn.removeAttribute('href');
       }
-    };
+    }
   }
 
   async function init() {

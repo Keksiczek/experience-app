@@ -119,11 +119,43 @@
     let activeBaseLayer = null;
     let activeBaseLayerName = null;
 
+    // A small spinner badge shown while tiles are loading.  Tile loads can
+    // take a while on slow tile servers (e.g. OpenTopoMap) and a silent
+    // grey square is a worse experience than an obvious "working…" hint.
+    const tileLoader = document.createElement('div');
+    tileLoader.className = 'map-tile-loader hidden';
+    tileLoader.setAttribute('aria-hidden', 'true');
+    tileLoader.innerHTML = '<span class="spinner"></span><span>Načítám&nbsp;dlaždice…</span>';
+    el.appendChild(tileLoader);
+    L.DomEvent.disableClickPropagation(tileLoader);
+
+    let pendingTileLoads = 0;
+    function showTileSpinner() {
+      pendingTileLoads += 1;
+      tileLoader.classList.remove('hidden');
+    }
+    function hideTileSpinner() {
+      pendingTileLoads = Math.max(0, pendingTileLoads - 1);
+      if (pendingTileLoads === 0) tileLoader.classList.add('hidden');
+    }
+
     function setBaseLayer(name) {
       const cfg = BASE_LAYERS[name];
       if (!cfg) return;
-      if (activeBaseLayer) map.removeLayer(activeBaseLayer);
-      activeBaseLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
+      if (activeBaseLayer) {
+        activeBaseLayer.off('loading', showTileSpinner);
+        activeBaseLayer.off('load', hideTileSpinner);
+        map.removeLayer(activeBaseLayer);
+      }
+      // Switching layers nukes any in-flight load — reset the counter so
+      // the spinner doesn't get stuck visible.
+      pendingTileLoads = 0;
+      tileLoader.classList.add('hidden');
+
+      activeBaseLayer = L.tileLayer(cfg.url, cfg.options);
+      activeBaseLayer.on('loading', showTileSpinner);
+      activeBaseLayer.on('load', hideTileSpinner);
+      activeBaseLayer.addTo(map);
       activeBaseLayerName = name;
       persistBaseLayer(name);
       el.querySelectorAll('[data-basemap]').forEach((btn) => {
