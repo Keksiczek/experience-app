@@ -194,6 +194,7 @@
         ${stop.name ? `<div class="stop-name">${escapeHtml(stop.name)}</div>` : ''}
         ${stop.why_here ? `<div class="stop-why"><strong>Proč zde:</strong> ${escapeHtml(stop.why_here)}</div>` : ''}
         ${stop.narration ? `<div class="stop-narration">${escapeHtml(stop.narration)}</div>` : ''}
+        ${renderWikipediaBlock(stop, { compact: true })}
         ${warningHtml}
         <div class="stop-footer">
           <span title="Skóre"><span class="score-star" aria-hidden="true">★</span> ${score}</span>
@@ -202,6 +203,37 @@
         </div>
         ${renderStopLinks(stop)}
       </div>
+    `;
+  }
+
+  function renderWikipediaBlock(stop, opts = {}) {
+    if (!stop || !stop.wikipedia_summary) return '';
+    const compact = !!opts.compact;
+    const lang = stop.wikipedia_lang || '';
+    const labelLang = lang ? lang.toUpperCase() : 'wiki';
+    const url = stop.wikipedia_url || '';
+    const linkHtml = url
+      ? `<a class="wiki-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Otevřít článek na Wikipedii">Wikipedia ↗</a>`
+      : '';
+    const summary = escapeHtml(stop.wikipedia_summary);
+    if (compact) {
+      return `
+        <details class="wiki-block">
+          <summary>
+            <span class="wiki-label">📖 Wikipedia · ${escapeHtml(labelLang)}</span>
+            <span class="wiki-summary-collapsed">${summary}</span>
+          </summary>
+          <div class="wiki-summary">${summary}</div>
+          ${linkHtml ? `<div class="wiki-actions">${linkHtml}</div>` : ''}
+        </details>
+      `;
+    }
+    return `
+      <section class="wiki-block wiki-block-full" aria-labelledby="wiki-h-${escapeHtml(stop.id)}">
+        <h3 id="wiki-h-${escapeHtml(stop.id)}" class="wiki-heading">📖 Z Wikipedie · ${escapeHtml(labelLang)}</h3>
+        <div class="wiki-summary">${summary}</div>
+        ${linkHtml ? `<div class="wiki-actions">${linkHtml}</div>` : ''}
+      </section>
     `;
   }
 
@@ -242,9 +274,14 @@
     const providerDetails = document.getElementById('provider-details-body');
     if (!header || !metrics || !stopsList) return;
 
-    document.title = exp.prompt
-      ? `${exp.prompt.slice(0, 60)} — Experience`
-      : 'Experience — Detail';
+    const isSample = document.body.classList.contains('sample-mode');
+    if (isSample && exp.prompt) {
+      document.title = `${exp.prompt.slice(0, 60)} — Inspirace`;
+    } else if (exp.prompt) {
+      document.title = `${exp.prompt.slice(0, 60)} — Experience`;
+    } else {
+      document.title = 'Experience — Detail';
+    }
 
     const badges = [
       `<span class="badge badge-${escapeHtml(exp.job_status)}">${escapeHtml(statusLabel(exp.job_status))}</span>`,
@@ -532,6 +569,7 @@
         </div>
         ${stop.why_here ? `<div class="theater-why">${escapeHtml(stop.why_here)}</div>` : ''}
         ${stop.narration ? `<div class="theater-narration">${escapeHtml(stop.narration)}</div>` : ''}
+        ${renderWikipediaBlock(stop, { compact: false })}
         <div class="theater-meta">
           ${stop.fallback_level ? `<span class="meta-tag" title="${escapeHtml(fbLabel)}"><span class="fallback-dot ${escapeHtml(stop.fallback_level)}" aria-hidden="true"></span> ${escapeHtml(fbLabel)}</span>` : ''}
           ${llmTagHtml}
@@ -931,10 +969,14 @@
 
     const gpxBtn = document.getElementById('gpx-btn');
     if (gpxBtn) {
+      const isSample = document.body.classList.contains('sample-mode');
       const hasGeo = (exp.stops || []).some(
         (s) => typeof s.lat === 'number' && typeof s.lon === 'number',
       );
-      if (hasGeo && exp.id) {
+      // Curated samples aren't persisted in the job store, so the GPX
+      // endpoint can't resolve them.  Skip the button for samples until we
+      // add a /samples/{slug}/gpx route.
+      if (hasGeo && exp.id && !isSample) {
         gpxBtn.href = `${window.api.BASE_URL}/experiences/${encodeURIComponent(exp.id)}/gpx`;
         gpxBtn.setAttribute('download', `experience-${exp.id.slice(0, 8)}.gpx`);
         gpxBtn.classList.remove('hidden');
@@ -945,12 +987,23 @@
     }
   }
 
+  function applySampleMode() {
+    // Curated samples are read-only — hide the chrome that only makes
+    // sense for live jobs (delete/copy/provider debug, GPX still works).
+    document.body.classList.add('sample-mode');
+    const copyBtn = document.getElementById('copy-json-btn');
+    if (copyBtn) copyBtn.classList.add('hidden');
+    const providerWrap = document.querySelector('.detail-footer details');
+    if (providerWrap) providerWrap.style.display = 'none';
+  }
+
   async function init() {
     const jobId = getQueryParam('id');
+    const sampleSlug = getQueryParam('sample');
     const stopsList = document.getElementById('stops-list');
     const header = document.getElementById('detail-header');
 
-    if (!jobId) {
+    if (!jobId && !sampleSlug) {
       if (header) {
         header.innerHTML = `
           <div class="error-box" role="alert">
@@ -974,6 +1027,28 @@
     } catch (err) {
       console.error('Map init failed:', err);
       renderMapFallback(err);
+    }
+
+    if (sampleSlug) {
+      try {
+        applySampleMode();
+        const exp = await window.api.getSample(sampleSlug);
+        renderExperience(exp, currentMapInstance);
+        bindFooter(exp);
+      } catch (err) {
+        if (header) {
+          header.innerHTML = `
+            <div class="error-box" role="alert">
+              <div class="error-body">
+                Nepodařilo se načíst sample: ${escapeHtml(err.message)}
+                <div class="error-action"><a href="index.html">← Zpět na hlavní stránku</a></div>
+              </div>
+            </div>
+          `;
+        }
+        if (stopsList) stopsList.innerHTML = '';
+      }
+      return;
     }
 
     try {

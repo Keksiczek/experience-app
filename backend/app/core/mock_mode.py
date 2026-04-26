@@ -20,6 +20,7 @@ from app.providers.mapillary import MapillaryProvider
 from app.providers.nominatim import NominatimProvider
 from app.providers.osm import OverpassProvider
 from app.providers.wikimedia import WikimediaProvider
+from app.providers.wikipedia import WikipediaProvider
 
 _SAMPLES_DIR = Path(__file__).parent.parent.parent.parent / "data" / "samples"
 
@@ -150,3 +151,61 @@ class MockWikimediaProvider(WikimediaProvider):
             distance_m=dist,
         )
         return candidate, FallbackLevel.PARTIAL_MEDIA
+
+
+class MockWikipediaProvider(WikipediaProvider):
+    """Returns a templated 'Wikipedia-like' summary for any stop.
+
+    Real WikipediaProvider needs a Wikidata QID; mock places never go
+    through the wikidata enrichment step, so we expose
+    ``fetch_summary_for_stop`` which the enrichment pipeline picks up
+    via duck typing.  Output language tracks the Czech UI.
+    """
+
+    _MODE_PREFIX = {
+        "abandoned_industrial":
+            "Tato bývalá průmyslová lokalita patří k charakteristickým "
+            "stopám těžkého průmyslu v regionu. ",
+        "remote_landscape":
+            "Místo se nachází v relativně odlehlé části regionu, "
+            "stranou hlavních dopravních koridorů. ",
+        "scenic_roadtrip":
+            "Lokalita patří mezi malebná místa vhodná k zastavení "
+            "během průjezdu regionem. ",
+    }
+
+    async def fetch_summary_for_stop(  # type: ignore[override]
+        self, stop, place
+    ) -> dict[str, str] | None:
+        name = stop.short_title or stop.name or ""
+        if not name:
+            return None
+        tags = (place.tags if place is not None else None) or {}
+        mode_hint = ""
+        if tags.get("historic") in {"ruins", "industrial", "mine"} or tags.get("ruins"):
+            mode_hint = self._MODE_PREFIX["abandoned_industrial"]
+        elif tags.get("natural") in {"peak", "ridge", "valley"}:
+            mode_hint = self._MODE_PREFIX["remote_landscape"]
+
+        tag_descriptors = []
+        if tags.get("historic"):
+            tag_descriptors.append(f"klasifikace: {tags['historic']}")
+        if tags.get("ruins"):
+            tag_descriptors.append(f"typ ruin: {tags['ruins']}")
+        if tags.get("landuse") == "industrial":
+            tag_descriptors.append("průmyslové využití pozemku")
+        if tags.get("man_made"):
+            tag_descriptors.append(f"man_made: {tags['man_made']}")
+        descriptor_sentence = (
+            f"OpenStreetMap eviduje atributy: {'; '.join(tag_descriptors)}. "
+            if tag_descriptors else ""
+        )
+
+        summary = (
+            f"{name} — {mode_hint}{descriptor_sentence}"
+            "Pro úplný kontext doporučujeme prozkoumat lokalitu na místě "
+            "nebo si přečíst odpovídající článek na Wikipedii."
+        )
+        slug = name.replace(" ", "_")
+        url = f"https://cs.wikipedia.org/wiki/{slug}"
+        return {"summary": summary, "url": url, "lang": "cs"}

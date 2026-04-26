@@ -16,6 +16,19 @@
   </header>
 
   <main class="page main-layout" role="main">
+    <section class="panel discover full-bleed" aria-labelledby="discover-heading">
+      <div class="discover-head">
+        <h2 id="discover-heading">Inspirace</h2>
+        <span class="discover-sub">Předpřipravené experiences na rozkoukání</span>
+      </div>
+      <div id="discover-list" class="discover-list" aria-live="polite">
+        <div class="discover-skeleton" aria-hidden="true"></div>
+        <div class="discover-skeleton" aria-hidden="true"></div>
+        <div class="discover-skeleton" aria-hidden="true"></div>
+        <div class="discover-skeleton" aria-hidden="true"></div>
+      </div>
+    </section>
+
     <section class="panel generator" aria-labelledby="generator-heading">
       <h2 id="generator-heading">Generátor</h2>
 
@@ -76,6 +89,7 @@
 
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/discover.js"></script>
   <script src="js/history.js"></script>
   <script src="js/generator.js"></script>
 </body>

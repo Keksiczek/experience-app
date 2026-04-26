@@ -52,6 +52,11 @@ class ExperienceStop(BaseModel):
     used_llm_narration: bool = False
     llm_fallback_reason: str | None = None
 
+    # Encyclopedic enrichment (filled by WikipediaProvider after composer)
+    wikipedia_summary: str | None = None   # ~1 paragraph from Wikipedia article
+    wikipedia_url: str | None = None       # Direct link to the source article
+    wikipedia_lang: str | None = None      # "cs" / "en" — which language was used
+
 
 class GenerationMetadata(BaseModel):
     started_at: datetime

@@ -20,12 +20,14 @@ from app.pipeline.media_resolution import resolve_media
 from app.pipeline.narrator import compose_summary, narrate_stops
 from app.pipeline.place_discovery import TooFewPlacesError, discover_places
 from app.pipeline.region_discovery import discover_regions
+from app.pipeline.wikipedia_enrichment import enrich_with_wikipedia
 from app.providers.mapillary import MapillaryProvider
 from app.providers.nominatim import NominatimProvider
 from app.providers.ollama_narrator import OllamaNarratorProvider
 from app.providers.osm import OverpassProvider
 from app.providers.wikimedia import WikimediaProvider
 from app.providers.wikidata import WikidataProvider
+from app.providers.wikipedia import WikipediaProvider
 
 logger = get_logger(__name__)
 
@@ -89,18 +91,21 @@ async def _execute_pipeline(experience: Experience) -> None:
             MockNominatimProvider,
             MockOverpassProvider,
             MockWikimediaProvider,
+            MockWikipediaProvider,
         )
         nominatim = MockNominatimProvider(cache)
         overpass = MockOverpassProvider(cache)
         mapillary = MockMapillaryProvider(cache)
         wikimedia = MockWikimediaProvider(cache)
         wikidata: WikidataProvider | None = None   # skip Wikidata in mock mode
+        wikipedia: WikipediaProvider | None = MockWikipediaProvider(cache)
     else:
         nominatim = NominatimProvider(cache)
         overpass = OverpassProvider(cache)
         mapillary = MapillaryProvider(cache)
         wikimedia = WikimediaProvider(cache)
         wikidata = WikidataProvider(cache)
+        wikipedia = WikipediaProvider(cache)
 
     ollama_narrator: OllamaNarratorProvider | None = None
     if settings.ollama_enabled:
@@ -274,6 +279,19 @@ async def _execute_pipeline(experience: Experience) -> None:
             1 for s in stops if s.llm_fallback_reason is not None
         )
         metadata.pipeline_steps.append("narrator")
+
+        # ── [7] Wikipedia enrichment (best-effort, never fails the job) ──────
+        if wikipedia is not None:
+            logger.info("pipeline_step", step="wikipedia_enrichment", job_id=experience.id)
+            try:
+                enriched = await enrich_with_wikipedia(stops, place_map, wikipedia)
+                metadata.decision_reasons.append(
+                    f"wikipedia: enriched {enriched}/{len(stops)} stop(s)"
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning("wikipedia_step_failed", error=str(e))
+                metadata.warnings.append(f"wikipedia enrichment skipped: {e}")
+            metadata.pipeline_steps.append("wikipedia_enrichment")
 
         # Quality flags and metrics
         _apply_quality_flags(experience, stops, metadata)

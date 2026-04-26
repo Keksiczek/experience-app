@@ -51,6 +51,15 @@ async function deleteExperience(jobId) {
   return _request('DELETE', `/experiences/${encodeURIComponent(jobId)}`);
 }
 
+async function listSamples() {
+  return _request('GET', '/samples');
+}
+
+async function getSample(slug) {
+  if (!slug) throw new Error('slug je povinné');
+  return _request('GET', `/samples/${encodeURIComponent(slug)}`);
+}
+
 async function getHealth() {
   return _request('GET', '/health');
 }
@@ -94,6 +103,8 @@ window.api = {
   getExperience,
   listExperiences,
   deleteExperience,
+  listSamples,
+  getSample,
   getHealth,
   pollUntilDone,
 };

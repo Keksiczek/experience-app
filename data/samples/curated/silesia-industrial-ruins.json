@@ -1,0 +1,142 @@
+{
+  "id": "sample-silesia-industrial-ruins",
+  "job_status": "completed",
+  "prompt": "opuštěné průmyslové oblasti v Horním Slezsku",
+  "selected_region": "Upper Silesia",
+  "stops": [
+    {
+      "id": "7a979a1d-03d3-4ad7-bae6-98d5f15432ce",
+      "order": 1,
+      "stop_order": 0,
+      "place_id": "osm:way:200001",
+      "media_id": "wikimedia:Huta_Pokój_w_Rudzie_Śląskiej.jpg",
+      "lat": 50.289,
+      "lon": 18.962,
+      "name": "Huta Pokój – Ruda Śląska",
+      "short_title": "Huta Pokój",
+      "why_here": "Druhá nejstarší huta v Horním Slezsku (1840) s dochovanými válcovnami.",
+      "narration": "Přijíždíme k areálu Huta Pokój — kdysi srdci ocelového průmyslu Slezska. Komplex stále obsahuje válcovny z 19. století a torzo vysokých pecí, které tvořily horizont Rudy Śląské po více než sto let.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Huta_Pok%C3%B3j"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Huta Pokój je železárna v Rudě Śląské v Horním Slezsku, založená v roce 1840. Patří mezi nejstarší dochované ocelárny v Polsku; hlavní válcovna je vedena jako průmyslová památka. Po útlumu výroby v 80. letech areál částečně chátrá, část je veřejně přístupná.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Huta_Pok%C3%B3j",
+      "wikipedia_lang": "cs"
+    },
+    {
+      "id": "9a39df1b-acab-48cb-80c1-1ec28811cd75",
+      "order": 2,
+      "stop_order": 1,
+      "place_id": "osm:way:200002",
+      "media_id": "wikimedia:Huta_Florian.jpg",
+      "lat": 50.334,
+      "lon": 19.061,
+      "name": "Huta Florian – Świętochłowice",
+      "short_title": "Huta Florian",
+      "why_here": "Vysoká pec z roku 1827, dnes zarostlá; jedno z nejmalebnějších torz regionu.",
+      "narration": "Florian byla první koksová huta v polské části Slezska. Dochované cihlové komíny tvoří charakteristickou siluetu, kterou znáte z fotografií industriální archeologie.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Huta_Florian"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Huta Florian byla železárna ve Świętochłowicích, založená kolem roku 1827. Provoz byl zastaven v roce 1992; část areálu je dnes opuštěná, část slouží jako lokace pro filmování a workshopy industriálního umění.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Huta_Florian",
+      "wikipedia_lang": "cs"
+    },
+    {
+      "id": "19da8225-590c-45b8-9824-1e009e29d927",
+      "order": 3,
+      "stop_order": 2,
+      "place_id": "osm:node:100003",
+      "media_id": "wikimedia:Szyb_Krystyna_Bytom.jpg",
+      "lat": 50.345,
+      "lon": 18.916,
+      "name": "Szyb Krystyna – Bytom",
+      "short_title": "Šachta Krystyna",
+      "why_here": "Vodárenská věž černouhelné šachty z roku 1867, dnes solitér v krajině.",
+      "narration": "Šachta Krystyna byla otevřena v polovině 19. století jako součást těžební společnosti hraběte Henckela. Po uzavření v roce 1991 zůstala vodárenská věž jako osamocený prvek mezi panelovými sídlišti Bytomu.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Szyb_Krystyna"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Szyb Krystyna byla černouhelná těžební šachta v Bytomu, v provozu 1867–1991. Po uzavření zůstala dochována vodárenská věž, která je dnes památkově chráněna.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Szyb_Krystyna",
+      "wikipedia_lang": "cs"
+    }
+  ],
+  "summary": "Trasa propojuje šest klíčových reliktů těžkého průmyslu Horního Slezska — od huty Pokój, kde se válcoval ocelový plech pro celý Reich, až k zarostlé hutě Florian a šachtě Krystyna.",
+  "quality_flags": [],
+  "quality_metrics": {
+    "imagery_coverage_ratio": 1.0,
+    "fallback_distribution": {
+      "FULL": 3
+    },
+    "diversity_score": 0.75,
+    "route_coherence_score": 0.55,
+    "narration_confidence": 0.7799999999999999,
+    "context_richness": 0.7
+  },
+  "generation_metadata": {
+    "started_at": "2026-04-26T05:55:10.674903Z",
+    "completed_at": "2026-04-26T05:55:10.674903Z",
+    "pipeline_steps": [
+      "intent_parser",
+      "region_discovery",
+      "place_discovery",
+      "media_resolution",
+      "experience_composer",
+      "narrator",
+      "wikipedia_enrichment"
+    ],
+    "provider_calls": {
+      "curated": 1
+    },
+    "cache_hits": {},
+    "total_candidates_evaluated": 0,
+    "warnings": [],
+    "decision_reasons": [
+      "curated sample seeded from script (silesia-industrial-ruins)"
+    ],
+    "degradation_reason": null,
+    "route_coherence_applied": false,
+    "route_style_used": "scattered",
+    "llm_narration_used": false,
+    "llm_narration_model": null,
+    "llm_fallback_count": 0
+  },
+  "created_at": "2026-04-26T05:55:10.674903Z",
+  "error_code": null,
+  "error_message": null,
+  "slug": "silesia-industrial-ruins",
+  "title": "Průmyslové ruiny Horního Slezska",
+  "teaser": "Šest pozůstatků těžkého průmyslu mezi Bytomem a Rudou Śląską — huty, šachty, cihelny, vše během jednoho dne autem.",
+  "cover_image": "https://commons.wikimedia.org/wiki/Special:FilePath/Huta_Pok%C3%B3j_w_Rudzie_%C5%9Al%C4%85skiej.jpg?width=600"
+}
