@@ -90,7 +90,13 @@ class MockOverpassProvider(OverpassProvider):
 
 
 class MockMapillaryProvider(MapillaryProvider):
-    """Returns a static Mapillary-style response regardless of coordinates."""
+    """Returns a deterministically rotated Mapillary-style response.
+
+    The sample file has multiple distinct IDs; we pick one per place_id
+    using a stable hash so subsequent calls for the same place return the
+    same image, but different places see different shots — useful for
+    demoing the click-out link in stop cards / theater hero.
+    """
 
     def __init__(self, cache: BaseCache) -> None:
         super().__init__(cache)
@@ -103,18 +109,19 @@ class MockMapillaryProvider(MapillaryProvider):
         if not images:
             return None, FallbackLevel.NO_MEDIA
 
-        first = images[0]
-        thumb = first.get("thumb_256_url", "")
+        idx = abs(hash(place_id)) % len(images)
+        chosen = images[idx]
+        thumb = chosen.get("thumb_256_url", "")
         if not thumb:
             return None, FallbackLevel.NO_MEDIA
 
         candidate = MediaCandidate(
-            id=f"mapillary:{first.get('id', 'mock')}",
+            id=f"mapillary:{chosen.get('id', 'mock')}",
             place_id=place_id,
             provider=MediaProvider.MAPILLARY,
             media_type=MediaType.STREET_LEVEL,
             preview_url=thumb,
-            viewer_ref=first.get("sequence", ""),
+            viewer_ref=chosen.get("sequence", ""),
             coverage_score=0.7,
             confidence=0.7,
         )
@@ -174,9 +181,28 @@ class MockWikipediaProvider(WikipediaProvider):
             "během průjezdu regionem. ",
     }
 
+    # Three real Commons file titles for industrial-Silesia themed mocks.
+    # Pretending we got these from a Wikipedia media-list lookup; rotated
+    # by stop_order so different mocked stops show different galleries.
+    _GALLERY_POOL = [
+        [
+            "Huta Pokój w Rudzie Śląskiej.jpg",
+            "Walcownia w Hucie Pokój.jpg",
+            "Pokoj steel mill chimney.jpg",
+        ],
+        [
+            "Huta Florian Świętochłowice.jpg",
+            "Huta Florian piec.jpg",
+        ],
+        [
+            "Szyb Krystyna Bytom.jpg",
+            "Bytom mining tower.jpg",
+        ],
+    ]
+
     async def fetch_summary_for_stop(  # type: ignore[override]
         self, stop, place
-    ) -> dict[str, str] | None:
+    ) -> dict[str, object] | None:
         name = stop.short_title or stop.name or ""
         if not name:
             return None
@@ -208,4 +234,7 @@ class MockWikipediaProvider(WikipediaProvider):
         )
         slug = name.replace(" ", "_")
         url = f"https://cs.wikipedia.org/wiki/{slug}"
-        return {"summary": summary, "url": url, "lang": "cs"}
+        gallery = self._GALLERY_POOL[
+            (stop.stop_order or 0) % len(self._GALLERY_POOL)
+        ]
+        return {"summary": summary, "url": url, "lang": "cs", "gallery": gallery}

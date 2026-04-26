@@ -1892,6 +1892,198 @@ body.theater-active #theater-controls {
 }
 
 /* =============================================================
+   Theater gallery thumb-strip
+   ============================================================= */
+
+.theater-thumbs {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-1) 0;
+  scroll-snap-type: x proximity;
+}
+
+.theater-thumb {
+  flex: 0 0 auto;
+  width: 120px;
+  height: 80px;
+  padding: 0;
+  background: var(--bg-card);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  scroll-snap-align: start;
+}
+
+.theater-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.theater-thumb:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.theater-thumb.active {
+  border-color: var(--accent);
+}
+
+/* =============================================================
+   Stop-card thumb strip
+   ============================================================= */
+
+.stop-thumbs {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.stop-thumb {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.stop-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stop-thumb:hover {
+  border-color: var(--accent);
+  transform: scale(1.04);
+}
+
+.stop-thumbs-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* =============================================================
+   Lightbox
+   ============================================================= */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  animation: fadein 120ms ease-out;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+body.lightbox-open {
+  overflow: hidden;
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  background: var(--bg-secondary);
+}
+
+.lightbox-close,
+.lightbox-prev,
+.lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(22, 27, 34, 0.85);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: var(--fs-xl);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-close {
+  top: var(--space-4);
+  right: var(--space-4);
+  transform: none;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.lightbox-prev {
+  left: var(--space-4);
+}
+
+.lightbox-next {
+  right: var(--space-4);
+}
+
+.lightbox-close:hover,
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+}
+
+.lightbox-counter {
+  position: absolute;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  background: rgba(22, 27, 34, 0.85);
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .lightbox-prev,
+  .lightbox-next {
+    width: 36px;
+    height: 36px;
+  }
+  .lightbox-close {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* =============================================================
    Wikipedia summary block
    ============================================================= */
 

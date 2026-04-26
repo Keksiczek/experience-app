@@ -166,6 +166,37 @@
       mediaHtml = `<div class="stop-media-placeholder" aria-hidden="true">Bez média</div>`;
     }
 
+    // Compact gallery row when extras are present.  Limit to 4 visible
+    // thumbs (+ "+N" badge when more) so the card stays compact.
+    const galleryIds = [];
+    if (stop.media_id) galleryIds.push(stop.media_id);
+    (stop.extra_media || []).forEach((id) => {
+      if (id && !galleryIds.includes(id)) galleryIds.push(id);
+    });
+    let galleryHtml = '';
+    if (galleryIds.length > 1) {
+      const visible = galleryIds.slice(0, 4);
+      const remaining = galleryIds.length - visible.length;
+      const items = visible.map((id, i) => {
+        const t = media.thumbUrl(id, 160);
+        if (!t) return '';
+        return `
+          <button type="button"
+                  class="stop-thumb"
+                  data-stop-thumb-index="${i}"
+                  aria-label="Zvětšit obrázek ${i + 1}">
+            <img src="${escapeHtml(t)}" alt="" loading="lazy" data-fallback="img"/>
+          </button>
+        `;
+      }).filter(Boolean).join('');
+      const more = remaining > 0
+        ? `<span class="stop-thumbs-more" aria-hidden="true">+${remaining}</span>`
+        : '';
+      if (items) {
+        galleryHtml = `<div class="stop-thumbs" data-gallery='${escapeHtml(JSON.stringify(galleryIds))}'>${items}${more}</div>`;
+      }
+    }
+
     const warningHtml = narrationConf < 0.5
       ? `<div class="stop-warning">⚠️ Omezený kontext (confidence ${narrationConf.toFixed(2)})</div>`
       : '';
@@ -194,6 +225,7 @@
         ${stop.name ? `<div class="stop-name">${escapeHtml(stop.name)}</div>` : ''}
         ${stop.why_here ? `<div class="stop-why"><strong>Proč zde:</strong> ${escapeHtml(stop.why_here)}</div>` : ''}
         ${stop.narration ? `<div class="stop-narration">${escapeHtml(stop.narration)}</div>` : ''}
+        ${galleryHtml}
         ${renderWikipediaBlock(stop, { compact: true })}
         ${warningHtml}
         <div class="stop-footer">
@@ -282,6 +314,7 @@
     } else {
       document.title = 'Experience — Detail';
     }
+    updateMetaTags(exp);
 
     const badges = [
       `<span class="badge badge-${escapeHtml(exp.job_status)}">${escapeHtml(statusLabel(exp.job_status))}</span>`,
@@ -341,6 +374,17 @@
       stopsList.querySelectorAll('img[data-fallback="img"]').forEach((img) => {
         img.addEventListener('error', () => { img.style.display = 'none'; }, { once: true });
       });
+      stopsList.querySelectorAll('.stop-thumbs').forEach((row) => {
+        let ids = [];
+        try { ids = JSON.parse(row.getAttribute('data-gallery') || '[]'); } catch (_) { ids = []; }
+        row.querySelectorAll('.stop-thumb').forEach((btn) => {
+          const i = parseInt(btn.getAttribute('data-stop-thumb-index'), 10);
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (Number.isFinite(i)) openLightbox(ids, i);
+          });
+        });
+      });
     }
 
     if (providerDetails) providerDetails.innerHTML = renderProviderTable(meta);
@@ -366,6 +410,9 @@
 
     if (mapInstance) {
       try {
+        if (typeof mapInstance.suggestBaseLayer === 'function') {
+          mapInstance.suggestBaseLayer(meta && meta.intent_mode);
+        }
         mapInstance.setExperience(exp, {
           onMarkerClick: (stopId) => activateStop(stopId, { scroll: true, openMarker: false }),
         });
@@ -517,12 +564,147 @@
 
   // ── Theater mode ─────────────────────────────────────────────────────────
 
+  function bindGalleryControls(stage, stop) {
+    const buttons = stage.querySelectorAll('.theater-thumb');
+    if (buttons.length === 0) return;
+    let galleryIds = [];
+    try {
+      const stopEl = stage.querySelector('[data-gallery]');
+      if (stopEl) galleryIds = JSON.parse(stopEl.getAttribute('data-gallery') || '[]');
+    } catch (_) { galleryIds = []; }
+
+    const heroEl = stage.querySelector('.theater-hero');
+    const overlay = stage.querySelector('.theater-hero-overlay');
+
+    function swapHero(newId) {
+      if (!newId || !heroEl) return;
+      const url = media.thumbUrl(newId, 1200);
+      if (!url) return;
+      // Re-render the hero body but keep the overlay markup intact.
+      const overlayHtml = overlay ? overlay.outerHTML : '';
+      heroEl.innerHTML =
+        `<img class="theater-hero-img" src="${escapeHtml(url)}" alt="" loading="lazy" data-fallback="hero"/>` +
+        overlayHtml;
+      const img = heroEl.querySelector('.theater-hero-img');
+      if (img) {
+        img.addEventListener('error', () => replaceHeroWithFallback(stage), { once: true });
+        img.addEventListener('click', () => openLightbox(galleryIds, galleryIds.indexOf(newId)));
+      }
+    }
+
+    buttons.forEach((btn) => {
+      const i = parseInt(btn.getAttribute('data-gallery-index'), 10);
+      btn.addEventListener('click', () => {
+        if (!Number.isFinite(i)) return;
+        buttons.forEach((b) => b.classList.toggle('active', b === btn));
+        swapHero(galleryIds[i]);
+      });
+      const thumbImg = btn.querySelector('img[data-fallback="thumb"]');
+      if (thumbImg) {
+        thumbImg.addEventListener('error', () => { btn.style.display = 'none'; }, { once: true });
+      }
+    });
+
+    // Make the visible hero clickable to open the lightbox at slot 0.
+    const initialHero = stage.querySelector('.theater-hero-img');
+    if (initialHero) {
+      initialHero.style.cursor = 'zoom-in';
+      initialHero.addEventListener('click', () => openLightbox(galleryIds, 0));
+    }
+  }
+
+  // ── Lightbox ──────────────────────────────────────────────────────────
+
+  let lightboxIds = [];
+  let lightboxIndex = 0;
+
+  function ensureLightboxNode() {
+    let el = document.getElementById('lightbox');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'lightbox';
+    el.className = 'lightbox';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', 'Zvětšený obrázek');
+    el.hidden = true;
+    el.innerHTML = `
+      <button type="button" class="lightbox-close" aria-label="Zavřít" data-lightbox-action="close">×</button>
+      <button type="button" class="lightbox-prev" aria-label="Předchozí" data-lightbox-action="prev">◀</button>
+      <img class="lightbox-img" alt="" />
+      <button type="button" class="lightbox-next" aria-label="Další" data-lightbox-action="next">▶</button>
+      <div class="lightbox-counter" aria-live="polite"></div>
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('click', (ev) => {
+      const action = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-lightbox-action');
+      if (action === 'close' || ev.target === el) closeLightbox();
+      else if (action === 'prev') stepLightbox(-1);
+      else if (action === 'next') stepLightbox(+1);
+    });
+    return el;
+  }
+
+  function renderLightboxFrame() {
+    const el = document.getElementById('lightbox');
+    if (!el || lightboxIds.length === 0) return;
+    const id = lightboxIds[lightboxIndex];
+    const img = el.querySelector('.lightbox-img');
+    const counter = el.querySelector('.lightbox-counter');
+    const url = media.thumbUrl(id, 1600);
+    if (img) img.src = url || '';
+    if (counter) counter.textContent = `${lightboxIndex + 1} / ${lightboxIds.length}`;
+    const prev = el.querySelector('.lightbox-prev');
+    const next = el.querySelector('.lightbox-next');
+    if (prev) prev.style.visibility = lightboxIds.length > 1 ? 'visible' : 'hidden';
+    if (next) next.style.visibility = lightboxIds.length > 1 ? 'visible' : 'hidden';
+  }
+
+  function openLightbox(ids, startIndex) {
+    if (!ids || ids.length === 0) return;
+    lightboxIds = ids.slice();
+    lightboxIndex = Math.max(0, Math.min(startIndex || 0, lightboxIds.length - 1));
+    const el = ensureLightboxNode();
+    el.hidden = false;
+    document.body.classList.add('lightbox-open');
+    renderLightboxFrame();
+  }
+
+  function closeLightbox() {
+    const el = document.getElementById('lightbox');
+    if (!el) return;
+    el.hidden = true;
+    document.body.classList.remove('lightbox-open');
+    lightboxIds = [];
+  }
+
+  function stepLightbox(delta) {
+    if (lightboxIds.length === 0) return;
+    lightboxIndex = (lightboxIndex + delta + lightboxIds.length) % lightboxIds.length;
+    renderLightboxFrame();
+  }
+
+  function isLightboxOpen() {
+    const el = document.getElementById('lightbox');
+    return !!(el && !el.hidden);
+  }
+
   function renderTheaterStopCard(stop, idx, total) {
     const stopNum = idx + 1;
     const title = stop.short_title || stop.name || `Zastávka ${stopNum}`;
-    const thumb = media.thumbUrl(stop.media_id, 1200);
-    const ext = media.externalUrl(stop.media_id);
-    const sourceLabel = media.sourceLabel(stop.media_id);
+
+    // Build the gallery list.  Always start with the primary media_id so
+    // it occupies slot 0 (the visible hero).  De-dupe extras that match.
+    const galleryIds = [];
+    if (stop.media_id) galleryIds.push(stop.media_id);
+    (stop.extra_media || []).forEach((id) => {
+      if (id && !galleryIds.includes(id)) galleryIds.push(id);
+    });
+
+    const heroId = galleryIds[0] || null;
+    const thumb = heroId ? media.thumbUrl(heroId, 1200) : null;
+    const ext = heroId ? media.externalUrl(heroId) : null;
+    const sourceLabel = heroId ? media.sourceLabel(heroId) : null;
 
     let heroBody = '';
     if (thumb) {
@@ -538,6 +720,26 @@
       `;
     } else {
       heroBody = `<div class="theater-hero-fallback"><div class="theater-hero-fallback-text">Bez obrázku</div></div>`;
+    }
+
+    // Render thumbnail strip only when there is more than the hero.
+    let thumbStripHtml = '';
+    if (galleryIds.length > 1) {
+      const thumbs = galleryIds.map((id, i) => {
+        const t = media.thumbUrl(id, 200);
+        if (!t) return '';
+        return `
+          <button type="button"
+                  class="theater-thumb ${i === 0 ? 'active' : ''}"
+                  data-gallery-index="${i}"
+                  aria-label="Zobrazit obrázek ${i + 1}">
+            <img src="${escapeHtml(t)}" alt="" loading="lazy" data-fallback="thumb"/>
+          </button>
+        `;
+      }).filter(Boolean).join('');
+      if (thumbs) {
+        thumbStripHtml = `<div class="theater-thumbs">${thumbs}</div>`;
+      }
     }
 
     const ticks = Array.from({ length: total }, (_, i) => {
@@ -557,7 +759,7 @@
       : '';
 
     return `
-      <article class="theater-stop">
+      <article class="theater-stop" data-gallery='${escapeHtml(JSON.stringify(galleryIds))}'>
         <div class="theater-progress" role="tablist" aria-label="Zastávky">${ticks}</div>
         <div class="theater-hero">
           ${heroBody}
@@ -567,6 +769,7 @@
             ${stop.name && stop.name !== title ? `<div class="theater-hero-place">${escapeHtml(stop.name)}</div>` : ''}
           </div>
         </div>
+        ${thumbStripHtml}
         ${stop.why_here ? `<div class="theater-why">${escapeHtml(stop.why_here)}</div>` : ''}
         ${stop.narration ? `<div class="theater-narration">${escapeHtml(stop.narration)}</div>` : ''}
         ${renderWikipediaBlock(stop, { compact: false })}
@@ -631,6 +834,8 @@
     if (heroImg) {
       heroImg.addEventListener('error', () => replaceHeroWithFallback(stage), { once: true });
     }
+
+    bindGalleryControls(stage, stop);
 
     // Track which stop is "current" so j/k in theater stays in sync.
     currentActiveId = stop.id;
@@ -898,6 +1103,25 @@
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (isTextInputFocused()) return;
 
+      if (isLightboxOpen()) {
+        switch (ev.key) {
+          case 'Escape':
+            ev.preventDefault();
+            closeLightbox();
+            return;
+          case 'ArrowLeft':
+            ev.preventDefault();
+            stepLightbox(-1);
+            return;
+          case 'ArrowRight':
+            ev.preventDefault();
+            stepLightbox(+1);
+            return;
+          default:
+            return;
+        }
+      }
+
       if (theaterActive) {
         switch (ev.key) {
           case 'ArrowRight':
@@ -969,21 +1193,61 @@
 
     const gpxBtn = document.getElementById('gpx-btn');
     if (gpxBtn) {
-      const isSample = document.body.classList.contains('sample-mode');
+      const sampleSlug = getQueryParam('sample');
       const hasGeo = (exp.stops || []).some(
         (s) => typeof s.lat === 'number' && typeof s.lon === 'number',
       );
-      // Curated samples aren't persisted in the job store, so the GPX
-      // endpoint can't resolve them.  Skip the button for samples until we
-      // add a /samples/{slug}/gpx route.
-      if (hasGeo && exp.id && !isSample) {
-        gpxBtn.href = `${window.api.BASE_URL}/experiences/${encodeURIComponent(exp.id)}/gpx`;
-        gpxBtn.setAttribute('download', `experience-${exp.id.slice(0, 8)}.gpx`);
+      let href = null;
+      let filename = null;
+      if (hasGeo && sampleSlug) {
+        href = `${window.api.BASE_URL}/samples/${encodeURIComponent(sampleSlug)}/gpx`;
+        filename = `sample-${sampleSlug}.gpx`;
+      } else if (hasGeo && exp.id) {
+        href = `${window.api.BASE_URL}/experiences/${encodeURIComponent(exp.id)}/gpx`;
+        filename = `experience-${exp.id.slice(0, 8)}.gpx`;
+      }
+      if (href) {
+        gpxBtn.href = href;
+        gpxBtn.setAttribute('download', filename);
         gpxBtn.classList.remove('hidden');
       } else {
         gpxBtn.classList.add('hidden');
         gpxBtn.removeAttribute('href');
       }
+    }
+  }
+
+  function setMetaContent(id, value) {
+    const el = document.getElementById(id);
+    if (el && value != null) el.setAttribute('content', value);
+  }
+
+  function updateMetaTags(exp) {
+    const title = exp.prompt ? `${exp.prompt.slice(0, 80)} — Experience` : 'Experience — Detail';
+    const stopsCount = (exp.stops || []).length;
+    const stopsWord = pluralCz(stopsCount, 'zastávka', 'zastávky', 'zastávek');
+    const region = exp.selected_region ? ` v regionu ${exp.selected_region}` : '';
+    const desc = exp.summary
+      ? exp.summary
+      : `Trasa o ${stopsCount} ${stopsWord}${region} — kurátorovaný geo-prolog.`;
+    setMetaContent('meta-description', desc);
+    setMetaContent('meta-og-title', title);
+    setMetaContent('meta-og-description', desc);
+    setMetaContent('meta-twitter-title', title);
+    setMetaContent('meta-twitter-description', desc);
+
+    // Pick the first stop's primary or extra image as the share preview.
+    const heroId = (() => {
+      for (const s of (exp.stops || [])) {
+        if (s.media_id) return s.media_id;
+        if (s.extra_media && s.extra_media.length > 0) return s.extra_media[0];
+      }
+      return null;
+    })();
+    const heroUrl = heroId ? media.thumbUrl(heroId, 1200) : null;
+    if (heroUrl) {
+      setMetaContent('meta-og-image', heroUrl);
+      setMetaContent('meta-twitter-image', heroUrl);
     }
   }
 

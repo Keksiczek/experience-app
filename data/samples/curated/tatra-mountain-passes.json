@@ -5,7 +5,7 @@
   "selected_region": "High Tatras",
   "stops": [
     {
-      "id": "40ec56b2-05ff-4d68-9008-2a95f335d10e",
+      "id": "fa22406e-d5c2-46b5-bd97-ae0b663a7d21",
       "order": 1,
       "stop_order": 0,
       "place_id": "osm:node:100301",
@@ -31,10 +31,14 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Kriváň je 2495 m vysoký štít v západní části Vysokých Tater. Pro Slováky je národním symbolem; jeho silueta je vyobrazena na 1- a 2-eurových mincích vyražených na Slovensku.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Kriv%C3%A1%C5%88",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": [
+        "wikimedia:Krivan_silueta.jpg",
+        "wikimedia:Krivan_summit.jpg"
+      ]
     },
     {
-      "id": "751c8f48-16aa-4fc4-8413-0185dd019ae8",
+      "id": "19a7f6e3-33e2-41cd-928a-28e01a57ff0c",
       "order": 2,
       "stop_order": 1,
       "place_id": "osm:node:100302",
@@ -60,10 +64,11 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Bystré sedlo je horské sedlo ve Vysokých Tatrách (2314 m) mezi Furkotským a Mlynickým štítem. Patří mezi nejvyšší značené přechody hlavního hřebene; trasa je sezonně uzavřena pro lavinové riziko.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Bystr%C3%A9_sedlo",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": []
     },
     {
-      "id": "21140bde-ae1b-4b3c-8f70-70d004c40321",
+      "id": "d454202b-115b-4106-b621-61f235923065",
       "order": 3,
       "stop_order": 2,
       "place_id": "osm:node:100303",
@@ -89,7 +94,8 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Sedielko je horské sedlo ve Vysokých Tatrách (2376 m), nejvyšší značený přechod hlavního hřebene. Spojuje Malou a Velkou Studenou dolinu; trasa je vedena přes feratové úseky a v zimě je uzavřena.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Sedielko",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": []
     }
   ],
   "summary": "Tři ze symbolicky nejtvrdších sedel hlavního hřebene Vysokých Tater. Trasa je rozložena přes 2–3 dny s noclehem v útulně; vyžaduje letní podmínky a slušnou výškovou aklimatizaci.",
@@ -105,8 +111,9 @@
     "context_richness": 0.7
   },
   "generation_metadata": {
-    "started_at": "2026-04-26T05:55:10.676008Z",
-    "completed_at": "2026-04-26T05:55:10.676008Z",
+    "started_at": "2026-04-26T12:01:32.541952Z",
+    "completed_at": "2026-04-26T12:01:32.541952Z",
+    "intent_mode": "remote_landscape",
     "pipeline_steps": [
       "intent_parser",
       "region_discovery",
@@ -132,7 +139,7 @@
     "llm_narration_model": null,
     "llm_fallback_count": 0
   },
-  "created_at": "2026-04-26T05:55:10.676008Z",
+  "created_at": "2026-04-26T12:01:32.541952Z",
   "error_code": null,
   "error_message": null,
   "slug": "tatra-mountain-passes",

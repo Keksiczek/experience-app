@@ -59,12 +59,25 @@
 
   const STORAGE_KEY = 'experience.basemap';
 
-  function readPreferredBaseLayer() {
+  // Map intent.mode → basemap that best matches the visual story.
+  // Industrial sites read better from above; mountain landscapes need
+  // contour lines.  Roadtrips use the standard street map.
+  const BASEMAP_BY_MODE = {
+    abandoned_industrial: 'satellite',
+    remote_landscape: 'terrain',
+    scenic_roadtrip: 'osm',
+  };
+
+  function readStoredBaseLayer() {
     try {
       const v = window.localStorage && localStorage.getItem(STORAGE_KEY);
       if (v && BASE_LAYERS[v]) return v;
     } catch (_) { /* ignore */ }
-    return 'osm';
+    return null;
+  }
+
+  function readPreferredBaseLayer() {
+    return readStoredBaseLayer() || 'osm';
   }
 
   function persistBaseLayer(name) {
@@ -257,12 +270,25 @@
       });
     }
 
+    function suggestBaseLayer(modeHint) {
+      // Only honour the suggestion if the user hasn't pinned a basemap
+      // explicitly (no value in localStorage yet).
+      if (readStoredBaseLayer()) return;
+      const target = BASEMAP_BY_MODE[modeHint || ''];
+      if (!target || target === activeBaseLayerName) return;
+      setBaseLayer(target);
+      // Suggestion-driven changes are already persisted by setBaseLayer;
+      // this is fine — once we've shown the user a satellite for an
+      // industrial story, that becomes their default.
+    }
+
     return {
       map,
       setExperience,
       focusStop,
       flyToBounds,
       setBaseLayer,
+      suggestBaseLayer,
       getBaseLayer: () => activeBaseLayerName,
     };
   }

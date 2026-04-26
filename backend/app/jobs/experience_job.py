@@ -141,6 +141,7 @@ async def _execute_pipeline(experience: Experience) -> None:
             experience.quality_flags.append("no_region_specified")
             metadata.warnings.append("no region detected in prompt — using registry fallback")
 
+        metadata.intent_mode = intent.mode.value
         metadata.decision_reasons.append(
             f"intent: mode={intent.mode.value}, confidence={intent.confidence:.2f}, "
             f"regions={intent.preferred_regions}"

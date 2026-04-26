@@ -67,6 +67,22 @@ async def enrich_with_wikipedia(
         # frontend "OSM ↗ / Wikipedia ↗" row picks it up automatically.
         if result["url"] and result["url"] not in stop.grounding_sources:
             stop.grounding_sources.append(result["url"])
+
+        # Translate Commons file titles into the same media_id format the
+        # primary `media_id` uses so the frontend pipeline (media.thumbUrl)
+        # can render them without special-casing.  Skip the title that
+        # already matches the primary so we don't duplicate it.
+        primary_title = (stop.media_id or "").split(":", 1)[1] if (
+            stop.media_id and stop.media_id.startswith("wikimedia:")
+        ) else None
+        gallery = result.get("gallery") or []
+        for raw_title in gallery:
+            file_title = raw_title.replace(" ", "_")
+            if primary_title and file_title == primary_title:
+                continue
+            media_id = f"wikimedia:{file_title}"
+            if media_id not in stop.extra_media:
+                stop.extra_media.append(media_id)
         return True
 
     flags = await asyncio.gather(*[enrich_one(s) for s in stops])

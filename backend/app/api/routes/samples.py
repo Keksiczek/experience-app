@@ -20,8 +20,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.api.routes.gpx import build_gpx
 from app.core.logging import get_logger
 from app.models.experience import Experience
 
@@ -81,8 +83,7 @@ async def list_samples() -> list[SampleSummary]:
     return out
 
 
-@router.get("/{slug}", response_model=Experience)
-async def get_sample(slug: str) -> Experience:
+def _load_sample_experience(slug: str) -> Experience:
     safe = slug.replace("/", "").replace("..", "")
     path = _SAMPLES_DIR / f"{safe}.json"
     if not path.exists():
@@ -90,8 +91,36 @@ async def get_sample(slug: str) -> Experience:
     raw = _load_one(path)
     if raw is None:
         raise HTTPException(status_code=500, detail="Nelze načíst sample.")
-    # Strip the curator-only fields before validating against the strict
+    # Strip curator-only fields before validating against the strict
     # Experience schema — the model rejects unknown extras.
     for k in ("slug", "title", "teaser", "cover_image"):
         raw.pop(k, None)
     return Experience.model_validate(raw)
+
+
+@router.get("/{slug}", response_model=Experience)
+async def get_sample(slug: str) -> Experience:
+    return _load_sample_experience(slug)
+
+
+@router.get(
+    "/{slug}/gpx",
+    responses={200: {"content": {"application/gpx+xml": {}}}},
+)
+async def get_sample_gpx(slug: str) -> Response:
+    experience = _load_sample_experience(slug)
+    has_geo = any(
+        s.lat is not None and s.lon is not None for s in experience.stops
+    )
+    if not has_geo:
+        raise HTTPException(
+            status_code=409,
+            detail="Sample nemá žádnou zastávku se souřadnicemi.",
+        )
+    gpx_xml = build_gpx(experience)
+    filename = f"sample-{slug}.gpx"
+    return Response(
+        content=gpx_xml,
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

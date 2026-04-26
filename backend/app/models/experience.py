@@ -57,10 +57,16 @@ class ExperienceStop(BaseModel):
     wikipedia_url: str | None = None       # Direct link to the source article
     wikipedia_lang: str | None = None      # "cs" / "en" — which language was used
 
+    # Up to a few extra image media IDs (e.g. "wikimedia:Foo.jpg") gathered
+    # from the Wikipedia article body.  The primary `media_id` is kept as
+    # the hero; this list backs the theater gallery.
+    extra_media: list[str] = Field(default_factory=list)
+
 
 class GenerationMetadata(BaseModel):
     started_at: datetime
     completed_at: datetime | None = None
+    intent_mode: str | None = None  # e.g. "abandoned_industrial" — hint for client UI
     pipeline_steps: list[str] = Field(default_factory=list)
     provider_calls: dict[str, int] = Field(default_factory=dict)
     cache_hits: dict[str, int] = Field(default_factory=dict)

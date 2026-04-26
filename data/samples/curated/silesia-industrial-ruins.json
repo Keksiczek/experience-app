@@ -5,7 +5,7 @@
   "selected_region": "Upper Silesia",
   "stops": [
     {
-      "id": "7a979a1d-03d3-4ad7-bae6-98d5f15432ce",
+      "id": "54e51573-0560-406e-b9c8-8c156192b0d8",
       "order": 1,
       "stop_order": 0,
       "place_id": "osm:way:200001",
@@ -31,10 +31,14 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Huta Pokój je železárna v Rudě Śląské v Horním Slezsku, založená v roce 1840. Patří mezi nejstarší dochované ocelárny v Polsku; hlavní válcovna je vedena jako průmyslová památka. Po útlumu výroby v 80. letech areál částečně chátrá, část je veřejně přístupná.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Huta_Pok%C3%B3j",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": [
+        "wikimedia:Walcownia_w_Hucie_Pokój.jpg",
+        "wikimedia:Pokoj_steel_mill_chimney.jpg"
+      ]
     },
     {
-      "id": "9a39df1b-acab-48cb-80c1-1ec28811cd75",
+      "id": "3d6a608f-f93f-4c04-9ba1-09b3ae512633",
       "order": 2,
       "stop_order": 1,
       "place_id": "osm:way:200002",
@@ -60,10 +64,11 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Huta Florian byla železárna ve Świętochłowicích, založená kolem roku 1827. Provoz byl zastaven v roce 1992; část areálu je dnes opuštěná, část slouží jako lokace pro filmování a workshopy industriálního umění.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Huta_Florian",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": []
     },
     {
-      "id": "19da8225-590c-45b8-9824-1e009e29d927",
+      "id": "51472ef3-edc9-4a2a-8a04-e1fbdae48b72",
       "order": 3,
       "stop_order": 2,
       "place_id": "osm:node:100003",
@@ -89,7 +94,8 @@
       "llm_fallback_reason": null,
       "wikipedia_summary": "Szyb Krystyna byla černouhelná těžební šachta v Bytomu, v provozu 1867–1991. Po uzavření zůstala dochována vodárenská věž, která je dnes památkově chráněna.",
       "wikipedia_url": "https://cs.wikipedia.org/wiki/Szyb_Krystyna",
-      "wikipedia_lang": "cs"
+      "wikipedia_lang": "cs",
+      "extra_media": []
     }
   ],
   "summary": "Trasa propojuje šest klíčových reliktů těžkého průmyslu Horního Slezska — od huty Pokój, kde se válcoval ocelový plech pro celý Reich, až k zarostlé hutě Florian a šachtě Krystyna.",
@@ -105,8 +111,9 @@
     "context_richness": 0.7
   },
   "generation_metadata": {
-    "started_at": "2026-04-26T05:55:10.674903Z",
-    "completed_at": "2026-04-26T05:55:10.674903Z",
+    "started_at": "2026-04-26T12:01:32.541381Z",
+    "completed_at": "2026-04-26T12:01:32.541381Z",
+    "intent_mode": "abandoned_industrial",
     "pipeline_steps": [
       "intent_parser",
       "region_discovery",
@@ -132,7 +139,7 @@
     "llm_narration_model": null,
     "llm_fallback_count": 0
   },
-  "created_at": "2026-04-26T05:55:10.674903Z",
+  "created_at": "2026-04-26T12:01:32.541381Z",
   "error_code": null,
   "error_message": null,
   "slug": "silesia-industrial-ruins",

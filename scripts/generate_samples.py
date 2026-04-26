@@ -50,6 +50,7 @@ def _stop(
     why_here: str,
     narration: str,
     media_id: str | None = None,
+    extra_media: list[str] | None = None,
     wikipedia_summary: str | None = None,
     wikipedia_url: str | None = None,
     wikipedia_lang: str | None = "cs",
@@ -74,6 +75,7 @@ def _stop(
         wikipedia_summary=wikipedia_summary,
         wikipedia_url=wikipedia_url,
         wikipedia_lang=wikipedia_lang if wikipedia_summary else None,
+        extra_media=extra_media or [],
     )
 
 
@@ -87,6 +89,7 @@ def _experience(
     region: str,
     summary: str,
     route_style: str,
+    intent_mode: str,
     stops: list[ExperienceStop],
 ) -> dict:
     now = datetime.now(UTC)
@@ -99,6 +102,7 @@ def _experience(
     metadata = GenerationMetadata(
         started_at=now,
         completed_at=now,
+        intent_mode=intent_mode,
         pipeline_steps=[
             "intent_parser",
             "region_discovery",
@@ -170,6 +174,7 @@ SAMPLES.append(
             "Reich, až k zarostlé hutě Florian a šachtě Krystyna."
         ),
         route_style="scattered",
+        intent_mode="abandoned_industrial",
         stops=[
             _stop(
                 order=1,
@@ -186,6 +191,10 @@ SAMPLES.append(
                     "Rudy Śląské po více než sto let."
                 ),
                 media_id="wikimedia:Huta_Pokój_w_Rudzie_Śląskiej.jpg",
+                extra_media=[
+                    "wikimedia:Walcownia_w_Hucie_Pokój.jpg",
+                    "wikimedia:Pokoj_steel_mill_chimney.jpg",
+                ],
                 wikipedia_summary=(
                     "Huta Pokój je železárna v Rudě Śląské v Horním Slezsku, "
                     "založená v roce 1840. Patří mezi nejstarší dochované "
@@ -263,6 +272,7 @@ SAMPLES.append(
             "klasiky (Hrubá Skála, Trosky) s méně známými vyhlídkami."
         ),
         route_style="linear",
+        intent_mode="scenic_roadtrip",
         stops=[
             _stop(
                 order=1,
@@ -279,6 +289,10 @@ SAMPLES.append(
                     "Maloskalsko a v dobré viditelnosti až na Krkonoše."
                 ),
                 media_id="wikimedia:Trosky_Castle.jpg",
+                extra_media=[
+                    "wikimedia:Trosky_z_jihu.jpg",
+                    "wikimedia:Trosky_panorama.jpg",
+                ],
                 wikipedia_summary=(
                     "Trosky jsou zřícenina hradu na čedičových sopouších "
                     "vyvřelin v okrese Semily. Vznikly koncem 14. století; "
@@ -356,6 +370,7 @@ SAMPLES.append(
             "který UNESCO uvádí jako největší krajinný park Evropy."
         ),
         route_style="linear",
+        intent_mode="scenic_roadtrip",
         stops=[
             _stop(
                 order=1,
@@ -371,6 +386,10 @@ SAMPLES.append(
                     "Mikulov, mikulovský zámek a celý hřeben Pálavy."
                 ),
                 media_id="wikimedia:Mikulov_Svaty_kopecek.jpg",
+                extra_media=[
+                    "wikimedia:Mikulov_kostel_sv_Sebestiana.jpg",
+                    "wikimedia:Mikulov_panorama.jpg",
+                ],
                 wikipedia_summary=(
                     "Svatý kopeček je vápencový vrch nad Mikulovem (363 m). "
                     "Křížová cesta s kaplí svatého Šebestiána pochází z let "
@@ -450,6 +469,7 @@ SAMPLES.append(
             "vyžaduje letní podmínky a slušnou výškovou aklimatizaci."
         ),
         route_style="scattered",
+        intent_mode="remote_landscape",
         stops=[
             _stop(
                 order=1,
@@ -466,6 +486,10 @@ SAMPLES.append(
                     "vidíte hlavní hřeben Tater i Nízké Tatry."
                 ),
                 media_id="wikimedia:Krivan_z_Hladkeho_titu.jpg",
+                extra_media=[
+                    "wikimedia:Krivan_silueta.jpg",
+                    "wikimedia:Krivan_summit.jpg",
+                ],
                 wikipedia_summary=(
                     "Kriváň je 2495 m vysoký štít v západní části Vysokých "
                     "Tater. Pro Slováky je národním symbolem; jeho silueta "
