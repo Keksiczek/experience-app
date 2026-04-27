@@ -1,0 +1,149 @@
+{
+  "id": "sample-moravian-wine-roadtrip",
+  "job_status": "completed",
+  "prompt": "vinařský roadtrip na jižní Moravě",
+  "selected_region": "South Moravia",
+  "stops": [
+    {
+      "id": "30b56ced-7e13-4286-8e97-d596e4eed175",
+      "order": 1,
+      "stop_order": 0,
+      "place_id": "osm:way:200201",
+      "media_id": "wikimedia:Mikulov_Svaty_kopecek.jpg",
+      "lat": 48.808,
+      "lon": 16.64,
+      "name": "Svatý kopeček – Mikulov",
+      "short_title": "Svatý kopeček",
+      "why_here": "Křížová cesta na vápencovém vrchu nad Mikulovem; nejlepší rozhled na Pálavu.",
+      "narration": "Vystupujeme po křížové cestě postavené v 17. století. Z vrcholové kaple sv. Šebestiána se otevírá pohled na Mikulov, mikulovský zámek a celý hřeben Pálavy.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Svat%C3%BD_kope%C4%8Dek_(Mikulov)"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Svatý kopeček je vápencový vrch nad Mikulovem (363 m). Křížová cesta s kaplí svatého Šebestiána pochází z let 1623–1630. Areál spadá pod CHKO Pálava a je národní kulturní památkou.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Svat%C3%BD_kope%C4%8Dek_(Mikulov)",
+      "wikipedia_lang": "cs",
+      "extra_media": [
+        "wikimedia:Mikulov_kostel_sv_Sebestiana.jpg",
+        "wikimedia:Mikulov_panorama.jpg"
+      ]
+    },
+    {
+      "id": "dc151666-e2e8-4398-919a-bb40922125f0",
+      "order": 2,
+      "stop_order": 1,
+      "place_id": "osm:way:200202",
+      "media_id": "wikimedia:Devicky.jpg",
+      "lat": 48.87,
+      "lon": 16.638,
+      "name": "Děvičky – zřícenina hradu",
+      "short_title": "Děvičky",
+      "why_here": "Zřícenina románského hradu na hřebeni Pavlovských vrchů — výhled na obě strany Pálavy.",
+      "narration": "Devín, místně Děvičky, byl postaven kolem roku 1222. Z jihu vidíte Mikulov a rakouskou hranici, ze severu Novomlýnské nádrže a Pálavu. Cesta vede po hřebeni, v parném létě bez stínu — vyrazte ráno.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/D%C4%9Bvi%C4%8Dky"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Děvičky (též Maidenburg) jsou zřícenina hradu na vrcholu Děvín v Pavlovských vrších. Hrad pochází z první třetiny 13. století; zničen byl Švédy roku 1645. Areál je součástí CHKO Pálava.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/D%C4%9Bvi%C4%8Dky",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    },
+    {
+      "id": "b5f72586-e710-48d8-a391-ff7875fd2a27",
+      "order": 3,
+      "stop_order": 2,
+      "place_id": "osm:way:200203",
+      "media_id": "wikimedia:Lednicky_zamek.jpg",
+      "lat": 48.802,
+      "lon": 16.805,
+      "name": "Lednicko-valtický areál",
+      "short_title": "Lednice",
+      "why_here": "Největší krajinný park Evropy — UNESCO; novogotický zámek + Minaret + Janův hrad.",
+      "narration": "Lednicko-valtický areál je 285 km² komponovaná krajina vytvořená Lichtenštejny v 19. století. Z lednického zámku můžete jít pěšky 2 km k Minaretu (60 m vysoká rozhledna v maurském stylu) nebo pokračovat k Janovu hradu — fingované zřícenině z roku 1810.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Lednicko-valtick%C3%BD_are%C3%A1l"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Lednicko-valtický areál je komponovaná krajina o rozloze 285 km² na jižní Moravě. Vytvořili ji Lichtenštejnové v 17.–19. století. Od roku 1996 je zapsán na seznam světového dědictví UNESCO.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Lednicko-valtick%C3%BD_are%C3%A1l",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    }
+  ],
+  "summary": "Trasa prochází srdcem moravského vinařství — od kamenných kostelíků nad Mikulovem přes Pálavu po lednicko-valtický areál, který UNESCO uvádí jako největší krajinný park Evropy.",
+  "quality_flags": [],
+  "quality_metrics": {
+    "imagery_coverage_ratio": 1.0,
+    "fallback_distribution": {
+      "FULL": 3
+    },
+    "diversity_score": 0.75,
+    "route_coherence_score": 0.85,
+    "narration_confidence": 0.7799999999999999,
+    "context_richness": 0.7
+  },
+  "generation_metadata": {
+    "started_at": "2026-04-26T12:01:32.541826Z",
+    "completed_at": "2026-04-26T12:01:32.541826Z",
+    "intent_mode": "scenic_roadtrip",
+    "pipeline_steps": [
+      "intent_parser",
+      "region_discovery",
+      "place_discovery",
+      "media_resolution",
+      "experience_composer",
+      "narrator",
+      "wikipedia_enrichment"
+    ],
+    "provider_calls": {
+      "curated": 1
+    },
+    "cache_hits": {},
+    "total_candidates_evaluated": 0,
+    "warnings": [],
+    "decision_reasons": [
+      "curated sample seeded from script (moravian-wine-roadtrip)"
+    ],
+    "degradation_reason": null,
+    "route_coherence_applied": true,
+    "route_style_used": "linear",
+    "llm_narration_used": false,
+    "llm_narration_model": null,
+    "llm_fallback_count": 0
+  },
+  "created_at": "2026-04-26T12:01:32.541826Z",
+  "error_code": null,
+  "error_message": null,
+  "slug": "moravian-wine-roadtrip",
+  "title": "Vinařský okruh jižní Moravou",
+  "teaser": "Linearní přejezd od Mikulova přes Pavlovské vrchy do Lednice — vinice, sklepní uličky a barokní krajinný park.",
+  "cover_image": "https://commons.wikimedia.org/wiki/Special:FilePath/Lednick%C3%BD_z%C3%A1mek_-_celkov%C3%BD_pohled.jpg?width=600"
+}

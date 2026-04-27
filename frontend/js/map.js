@@ -1,5 +1,5 @@
 (function () {
-  function escapeHtml(str) {
+  const escapeHtml = (window.ui && window.ui.escapeHtml) || function (str) {
     if (str == null) return '';
     return String(str)
       .replace(/&/g, '&amp;')
@@ -7,12 +7,81 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  };
+
+  function cssVar(name, fallback) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 
   function firstSentence(text) {
     if (!text) return '';
     const m = String(text).match(/^[\s\S]*?[.!?](\s|$)/);
     return (m ? m[0] : text).trim();
+  }
+
+  // Three free-tier tile layers. Each is rendered with the same coordinate
+  // grid so toggling does not require re-fitting bounds.
+  const BASE_LAYERS = {
+    osm: {
+      label: 'Mapa',
+      title: 'Standardní mapa (OpenStreetMap)',
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      options: {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors',
+      },
+    },
+    satellite: {
+      label: 'Satelit',
+      title: 'Satelitní snímky (Esri World Imagery)',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      options: {
+        maxZoom: 19,
+        attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+      },
+    },
+    terrain: {
+      label: 'Terén',
+      title: 'Topografická mapa (OpenTopoMap)',
+      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      options: {
+        maxZoom: 17,
+        attribution:
+          '© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors, SRTM',
+      },
+    },
+  };
+
+  const STORAGE_KEY = 'experience.basemap';
+
+  // Map intent.mode → basemap that best matches the visual story.
+  // Industrial sites read better from above; mountain landscapes need
+  // contour lines.  Roadtrips use the standard street map.
+  const BASEMAP_BY_MODE = {
+    abandoned_industrial: 'satellite',
+    remote_landscape: 'terrain',
+    scenic_roadtrip: 'osm',
+  };
+
+  function readStoredBaseLayer() {
+    try {
+      const v = window.localStorage && localStorage.getItem(STORAGE_KEY);
+      if (v && BASE_LAYERS[v]) return v;
+    } catch (_) { /* ignore */ }
+    return null;
+  }
+
+  function readPreferredBaseLayer() {
+    return readStoredBaseLayer() || 'osm';
+  }
+
+  function persistBaseLayer(name) {
+    try { localStorage.setItem(STORAGE_KEY, name); } catch (_) { /* ignore */ }
   }
 
   function makeMarkerIcon(stopOrderLabel, fallbackLevel) {
@@ -25,10 +94,32 @@
     });
   }
 
-  /**
-   * Initialise Leaflet map into the #map container.
-   * Returns an object { setExperience(exp, { onMarkerClick }), focusStop(stopId) }.
-   */
+  function buildBasemapControl(initial, onSelect) {
+    const wrap = document.createElement('div');
+    wrap.className = 'basemap-control';
+    wrap.setAttribute('role', 'group');
+    wrap.setAttribute('aria-label', 'Mapový podklad');
+    wrap.innerHTML = Object.entries(BASE_LAYERS)
+      .map(([key, cfg]) => `
+        <button type="button"
+                class="basemap-btn ${key === initial ? 'active' : ''}"
+                data-basemap="${key}"
+                title="${escapeHtml(cfg.title)}"
+                aria-pressed="${key === initial ? 'true' : 'false'}">
+          ${escapeHtml(cfg.label)}
+        </button>
+      `).join('');
+    wrap.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-basemap]');
+      if (!btn) return;
+      const name = btn.getAttribute('data-basemap');
+      onSelect(name);
+    });
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.disableScrollPropagation(wrap);
+    return wrap;
+  }
+
   function initMap(elementId) {
     const el = document.getElementById(elementId);
     if (!el) throw new Error(`Map container '#${elementId}' not found`);
@@ -38,10 +129,60 @@
       attributionControl: true,
     }).setView([49.8, 15.5], 7); // Default: Czechia
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map);
+    let activeBaseLayer = null;
+    let activeBaseLayerName = null;
+
+    // A small spinner badge shown while tiles are loading.  Tile loads can
+    // take a while on slow tile servers (e.g. OpenTopoMap) and a silent
+    // grey square is a worse experience than an obvious "working…" hint.
+    const tileLoader = document.createElement('div');
+    tileLoader.className = 'map-tile-loader hidden';
+    tileLoader.setAttribute('aria-hidden', 'true');
+    tileLoader.innerHTML = '<span class="spinner"></span><span>Načítám&nbsp;dlaždice…</span>';
+    el.appendChild(tileLoader);
+    L.DomEvent.disableClickPropagation(tileLoader);
+
+    let pendingTileLoads = 0;
+    function showTileSpinner() {
+      pendingTileLoads += 1;
+      tileLoader.classList.remove('hidden');
+    }
+    function hideTileSpinner() {
+      pendingTileLoads = Math.max(0, pendingTileLoads - 1);
+      if (pendingTileLoads === 0) tileLoader.classList.add('hidden');
+    }
+
+    function setBaseLayer(name) {
+      const cfg = BASE_LAYERS[name];
+      if (!cfg) return;
+      if (activeBaseLayer) {
+        activeBaseLayer.off('loading', showTileSpinner);
+        activeBaseLayer.off('load', hideTileSpinner);
+        map.removeLayer(activeBaseLayer);
+      }
+      // Switching layers nukes any in-flight load — reset the counter so
+      // the spinner doesn't get stuck visible.
+      pendingTileLoads = 0;
+      tileLoader.classList.add('hidden');
+
+      activeBaseLayer = L.tileLayer(cfg.url, cfg.options);
+      activeBaseLayer.on('loading', showTileSpinner);
+      activeBaseLayer.on('load', hideTileSpinner);
+      activeBaseLayer.addTo(map);
+      activeBaseLayerName = name;
+      persistBaseLayer(name);
+      el.querySelectorAll('[data-basemap]').forEach((btn) => {
+        const isActive = btn.getAttribute('data-basemap') === name;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    const initial = readPreferredBaseLayer();
+    setBaseLayer(initial);
+
+    const control = buildBasemapControl(initial, setBaseLayer);
+    el.appendChild(control);
 
     const markers = new Map(); // stopId -> marker
     let routeLine = null;
@@ -94,7 +235,7 @@
         const linePoints = latlngs.slice();
         if (style === 'loop') linePoints.push(latlngs[0]);
         routeLine = L.polyline(linePoints, {
-          color: '#58a6ff',
+          color: cssVar('--accent', '#58a6ff'),
           weight: 3,
           opacity: 0.7,
           dashArray: '6 6',
@@ -106,14 +247,50 @@
       }
     }
 
-    function focusStop(stopId) {
+    function focusStop(stopId, opts = {}) {
       const marker = markers.get(stopId);
       if (!marker) return;
-      map.setView(marker.getLatLng(), Math.max(map.getZoom(), 11), { animate: true });
-      marker.openPopup();
+      const ll = marker.getLatLng();
+      const targetZoom = opts.zoom != null ? opts.zoom : Math.max(map.getZoom(), 11);
+      if (opts.animate === false) {
+        map.setView(ll, targetZoom, { animate: false });
+      } else {
+        map.flyTo(ll, targetZoom, { duration: opts.duration || 1.0, easeLinearity: 0.25 });
+      }
+      if (opts.openPopup !== false) marker.openPopup();
     }
 
-    return { map, setExperience, focusStop };
+    function flyToBounds() {
+      const points = Array.from(markers.values()).map((m) => m.getLatLng());
+      if (points.length === 0) return;
+      map.flyToBounds(L.latLngBounds(points), {
+        padding: [40, 40],
+        maxZoom: 13,
+        duration: 0.8,
+      });
+    }
+
+    function suggestBaseLayer(modeHint) {
+      // Only honour the suggestion if the user hasn't pinned a basemap
+      // explicitly (no value in localStorage yet).
+      if (readStoredBaseLayer()) return;
+      const target = BASEMAP_BY_MODE[modeHint || ''];
+      if (!target || target === activeBaseLayerName) return;
+      setBaseLayer(target);
+      // Suggestion-driven changes are already persisted by setBaseLayer;
+      // this is fine — once we've shown the user a satellite for an
+      // industrial story, that becomes their default.
+    }
+
+    return {
+      map,
+      setExperience,
+      focusStop,
+      flyToBounds,
+      setBaseLayer,
+      suggestBaseLayer,
+      getBaseLayer: () => activeBaseLayerName,
+    };
   }
 
   window.map_ui = { initMap };

@@ -1,4 +1,6 @@
 (function () {
+  const { escapeHtml, toast } = window.ui;
+
   const RUNNING_MESSAGES = [
     'Hledám místa…',
     'Skóruji kandidáty…',
@@ -7,15 +9,8 @@
     'Skládám trasu…',
   ];
 
-  function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  const MAX_PROMPT_CHARS = 2000;
+  const POLL_TIMEOUT_MS = 300000;
 
   let runningMessageTimer = null;
 
@@ -31,6 +26,13 @@
     if (!box) return;
     box.classList.remove('hidden');
     box.innerHTML = html;
+  }
+
+  function hideStatus() {
+    const box = document.getElementById('generator-status');
+    if (!box) return;
+    box.classList.add('hidden');
+    box.innerHTML = '';
   }
 
   function renderPending() {
@@ -51,7 +53,7 @@
           <span class="spinner" aria-hidden="true"></span>
           <span id="running-text">${escapeHtml(RUNNING_MESSAGES[idx % RUNNING_MESSAGES.length])}</span>
         </div>
-        <div class="progress-bar"><div class="fill"></div></div>
+        <div class="progress-bar" aria-hidden="true"><div class="fill"></div></div>
       `);
       idx += 1;
     };
@@ -64,15 +66,15 @@
     clearRunningMessageCycler();
     const warn = experience.job_status === 'completed_with_warnings';
     const icon = warn
-      ? '<span class="status-icon warning" title="Dokončeno s varováním">!</span>'
-      : '<span class="status-icon success" title="Dokončeno">✓</span>';
+      ? '<span class="status-icon warning" title="Dokončeno s varováním" aria-hidden="true">!</span>'
+      : '<span class="status-icon success" title="Dokončeno" aria-hidden="true">✓</span>';
     const label = warn ? 'Dokončeno s varováním' : 'Experience vygenerována';
     const href = `experience.html?id=${encodeURIComponent(experience.id)}`;
     setStatus(`
       <div class="row">
         ${icon}
         <span>${escapeHtml(label)}</span>
-        <a href="${href}" style="margin-left:auto;">Zobrazit experience →</a>
+        <a href="${href}">Zobrazit experience →</a>
       </div>
     `);
   }
@@ -81,11 +83,20 @@
     clearRunningMessageCycler();
     const msg = (experience && experience.error_message) || fallbackMessage || 'Neznámá chyba';
     setStatus(`
-      <div class="row">
-        <span class="status-icon danger" title="Chyba">✕</span>
-        <span><strong>Chyba generování:</strong> ${escapeHtml(msg)}</span>
+      <div class="error-box" role="alert">
+        <span class="status-icon danger" aria-hidden="true">✕</span>
+        <div class="error-body"><strong>Chyba generování:</strong> ${escapeHtml(msg)}</div>
       </div>
     `);
+  }
+
+  function updateCharCount() {
+    const textarea = document.getElementById('prompt-input');
+    const counter = document.getElementById('char-count');
+    if (!textarea || !counter) return;
+    const n = textarea.value.length;
+    counter.textContent = `${n} / ${MAX_PROMPT_CHARS}`;
+    counter.classList.toggle('warn', n > MAX_PROMPT_CHARS * 0.9);
   }
 
   async function onGenerate() {
@@ -95,17 +106,26 @@
 
     const prompt = textarea.value.trim();
     if (!prompt) {
-      setStatus(`<div class="error-box">Zadej prompt — např. "Průmyslové ruiny v okolí Prahy".</div>`);
+      setStatus(`
+        <div class="error-box" role="alert">
+          <div class="error-body">Zadej prompt — např. „Průmyslové ruiny v okolí Prahy".</div>
+        </div>
+      `);
       textarea.focus();
       return;
     }
 
     btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
     textarea.readOnly = true;
     renderPending();
 
     try {
       const { job_id } = await window.api.createExperience(prompt);
+
+      if (window.history_ui && typeof window.history_ui.addOptimistic === 'function') {
+        window.history_ui.addOptimistic({ job_id, prompt });
+      }
 
       const finalExp = await window.api.pollUntilDone(
         job_id,
@@ -113,7 +133,7 @@
           if (exp.job_status === 'running') renderRunning();
           else if (exp.job_status === 'pending') renderPending();
         },
-        300000,
+        POLL_TIMEOUT_MS,
       );
 
       if (finalExp.job_status === 'failed') {
@@ -129,16 +149,19 @@
       renderFailed(null, err.message);
     } finally {
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
       textarea.readOnly = false;
     }
   }
 
   function bindExampleChips() {
-    document.querySelectorAll('#generator-examples span[data-example]').forEach((el) => {
+    document.querySelectorAll('#generator-examples [data-example]').forEach((el) => {
       el.addEventListener('click', () => {
         const textarea = document.getElementById('prompt-input');
         if (!textarea) return;
         textarea.value = el.getAttribute('data-example') || '';
+        updateCharCount();
+        hideStatus();
         textarea.focus();
       });
     });
@@ -157,15 +180,15 @@
       if (ollamaInfo) {
         if (h.ollama_model && h.providers && h.providers.ollama === 'ok') {
           ollamaInfo.textContent = `🤖 Ollama: ${h.ollama_model}`;
-          ollamaInfo.style.display = '';
+          ollamaInfo.classList.remove('hidden');
         } else {
-          ollamaInfo.style.display = 'none';
+          ollamaInfo.classList.add('hidden');
         }
       }
     } catch (_) {
       dot.className = 'health-dot down';
       text.textContent = 'Backend nedostupný';
-      if (ollamaInfo) ollamaInfo.style.display = 'none';
+      if (ollamaInfo) ollamaInfo.classList.add('hidden');
     }
   }
 
@@ -175,12 +198,14 @@
 
     const textarea = document.getElementById('prompt-input');
     if (textarea) {
+      textarea.addEventListener('input', updateCharCount);
       textarea.addEventListener('keydown', (ev) => {
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
           ev.preventDefault();
           onGenerate();
         }
       });
+      updateCharCount();
     }
 
     bindExampleChips();
@@ -188,6 +213,12 @@
     if (window.history_ui) window.history_ui.loadHistory();
     checkHealth();
     setInterval(checkHealth, 30000);
+
+    // Re-check health when tab comes back from background (fast feedback after
+    // waking the laptop).
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkHealth();
+    });
   }
 
   if (document.readyState === 'loading') {

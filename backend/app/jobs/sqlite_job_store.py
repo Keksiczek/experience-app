@@ -54,6 +54,9 @@ class SQLiteJobStore(BaseJobStore):
     async def list_ids(self) -> list[str]:
         return await asyncio.to_thread(self._list_ids_sync)
 
+    async def delete(self, job_id: str) -> bool:
+        return await asyncio.to_thread(self._delete_sync, job_id)
+
     # ── sync helpers (called via to_thread) ──────────────────────────────────
 
     def _save_sync(self, experience: Experience) -> None:
@@ -82,6 +85,14 @@ class SQLiteJobStore(BaseJobStore):
                 "SELECT job_id FROM jobs ORDER BY created_at DESC"
             ).fetchall()
         return [row[0] for row in rows]
+
+    def _delete_sync(self, job_id: str) -> bool:
+        with sqlite3.connect(self._db_path) as conn:
+            deleted = conn.execute(
+                "DELETE FROM jobs WHERE job_id = ?", (job_id,)
+            ).rowcount
+            conn.commit()
+        return deleted > 0
 
     def _evict_old(self) -> None:
         cutoff = (datetime.now(UTC) - timedelta(days=self._ttl_days)).isoformat()

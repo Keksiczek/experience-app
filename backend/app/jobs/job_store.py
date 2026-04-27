@@ -39,6 +39,11 @@ class BaseJobStore(ABC):
         """Return all known job IDs. Order is not guaranteed."""
         ...
 
+    @abstractmethod
+    async def delete(self, job_id: str) -> bool:
+        """Remove a job by ID. Returns True if something was deleted."""
+        ...
+
 
 class InMemoryJobStore(BaseJobStore):
     """
@@ -61,3 +66,6 @@ class InMemoryJobStore(BaseJobStore):
 
     async def list_ids(self) -> list[str]:
         return list(self._store.keys())
+
+    async def delete(self, job_id: str) -> bool:
+        return self._store.pop(job_id, None) is not None

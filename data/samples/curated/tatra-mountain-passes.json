@@ -1,0 +1,149 @@
+{
+  "id": "sample-tatra-mountain-passes",
+  "job_status": "completed",
+  "prompt": "drsná horská sedla a štíty Vysokých Tater",
+  "selected_region": "High Tatras",
+  "stops": [
+    {
+      "id": "fa22406e-d5c2-46b5-bd97-ae0b663a7d21",
+      "order": 1,
+      "stop_order": 0,
+      "place_id": "osm:node:100301",
+      "media_id": "wikimedia:Krivan_z_Hladkeho_titu.jpg",
+      "lat": 49.155,
+      "lon": 20.0,
+      "name": "Kriváň (2495 m)",
+      "short_title": "Kriváň",
+      "why_here": "Národní symbol Slovenska; klasický celodenní výstup po značené trase.",
+      "narration": "Kriváň je 2495 m vysoký štít na západním okraji Vysokých Tater. Klasický výstup začíná na Tří studničkách a trvá 8–10 hodin tam i zpět. Z vrcholu vidíte hlavní hřeben Tater i Nízké Tatry.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Kriv%C3%A1%C5%88"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Kriváň je 2495 m vysoký štít v západní části Vysokých Tater. Pro Slováky je národním symbolem; jeho silueta je vyobrazena na 1- a 2-eurových mincích vyražených na Slovensku.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Kriv%C3%A1%C5%88",
+      "wikipedia_lang": "cs",
+      "extra_media": [
+        "wikimedia:Krivan_silueta.jpg",
+        "wikimedia:Krivan_summit.jpg"
+      ]
+    },
+    {
+      "id": "19a7f6e3-33e2-41cd-928a-28e01a57ff0c",
+      "order": 2,
+      "stop_order": 1,
+      "place_id": "osm:node:100302",
+      "media_id": "wikimedia:Bystre_sedlo.jpg",
+      "lat": 49.183,
+      "lon": 20.156,
+      "name": "Bystré sedlo (2314 m)",
+      "short_title": "Bystré sedlo",
+      "why_here": "Jedno z nejvyšších značených sedel Vysokých Tater, mezi Bystrou a Furkotskou dolinou.",
+      "narration": "Sedlo leží mezi Furkotským a Mlynickým štítem ve výšce 2314 m. Klasický přechod vede z Furkotské doliny (přístup z Pleso pod Soliskom) do Mlynické doliny — středně náročná, ale exponovaná trasa s řetězy.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Bystr%C3%A9_sedlo"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Bystré sedlo je horské sedlo ve Vysokých Tatrách (2314 m) mezi Furkotským a Mlynickým štítem. Patří mezi nejvyšší značené přechody hlavního hřebene; trasa je sezonně uzavřena pro lavinové riziko.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Bystr%C3%A9_sedlo",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    },
+    {
+      "id": "d454202b-115b-4106-b621-61f235923065",
+      "order": 3,
+      "stop_order": 2,
+      "place_id": "osm:node:100303",
+      "media_id": "wikimedia:Sedielko.jpg",
+      "lat": 49.181,
+      "lon": 20.221,
+      "name": "Sedielko (2376 m)",
+      "short_title": "Sedielko",
+      "why_here": "Nejvyšší značené sedlo Vysokých Tater; přechod z Malé Studené do Velké Studené doliny.",
+      "narration": "Sedielko ve výšce 2376 m je nejvyšším značeným sedlem celých Vysokých Tater. Cesta z Téryho chaty stoupá drsnou suťovou stezkou; pohled z vrcholu zabírá Lomnický štít, Gerlach i Belianské Tatry.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Sedielko"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Sedielko je horské sedlo ve Vysokých Tatrách (2376 m), nejvyšší značený přechod hlavního hřebene. Spojuje Malou a Velkou Studenou dolinu; trasa je vedena přes feratové úseky a v zimě je uzavřena.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Sedielko",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    }
+  ],
+  "summary": "Tři ze symbolicky nejtvrdších sedel hlavního hřebene Vysokých Tater. Trasa je rozložena přes 2–3 dny s noclehem v útulně; vyžaduje letní podmínky a slušnou výškovou aklimatizaci.",
+  "quality_flags": [],
+  "quality_metrics": {
+    "imagery_coverage_ratio": 1.0,
+    "fallback_distribution": {
+      "FULL": 3
+    },
+    "diversity_score": 0.75,
+    "route_coherence_score": 0.55,
+    "narration_confidence": 0.7799999999999999,
+    "context_richness": 0.7
+  },
+  "generation_metadata": {
+    "started_at": "2026-04-26T12:01:32.541952Z",
+    "completed_at": "2026-04-26T12:01:32.541952Z",
+    "intent_mode": "remote_landscape",
+    "pipeline_steps": [
+      "intent_parser",
+      "region_discovery",
+      "place_discovery",
+      "media_resolution",
+      "experience_composer",
+      "narrator",
+      "wikipedia_enrichment"
+    ],
+    "provider_calls": {
+      "curated": 1
+    },
+    "cache_hits": {},
+    "total_candidates_evaluated": 0,
+    "warnings": [],
+    "decision_reasons": [
+      "curated sample seeded from script (tatra-mountain-passes)"
+    ],
+    "degradation_reason": null,
+    "route_coherence_applied": false,
+    "route_style_used": "scattered",
+    "llm_narration_used": false,
+    "llm_narration_model": null,
+    "llm_fallback_count": 0
+  },
+  "created_at": "2026-04-26T12:01:32.541952Z",
+  "error_code": null,
+  "error_message": null,
+  "slug": "tatra-mountain-passes",
+  "title": "Drsná horská sedla Vysokých Tater",
+  "teaser": "Tři vyhlídková sedla nad 1900 m — od Kriváně přes Bystré sedlo po Sedielko. Nutná dobrá kondice a pevné boty.",
+  "cover_image": "https://commons.wikimedia.org/wiki/Special:FilePath/Krivan_z_Hladkeho_titu.jpg?width=600"
+}

@@ -1,0 +1,149 @@
+{
+  "id": "sample-bohemian-paradise-rocks",
+  "job_status": "completed",
+  "prompt": "malebná skalní města a hrady v Českém ráji",
+  "selected_region": "Czech Paradise",
+  "stops": [
+    {
+      "id": "cff4d829-a7f8-42e1-bc42-995df3952487",
+      "order": 1,
+      "stop_order": 0,
+      "place_id": "osm:way:200101",
+      "media_id": "wikimedia:Trosky_Castle.jpg",
+      "lat": 50.515,
+      "lon": 15.232,
+      "name": "Hrad Trosky",
+      "short_title": "Hrad Trosky",
+      "why_here": "Symbol celého Českého ráje — zřícenina na dvojvrší vulkanického původu.",
+      "narration": "Vstupujeme do Trosek od jihu. Dvě věže — Baba a Panna — stojí na pozůstatcích dvou samostatných čedičových kuželů. Z dolního ochozu se otevírá pohled na celé Maloskalsko a v dobré viditelnosti až na Krkonoše.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Trosky"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Trosky jsou zřícenina hradu na čedičových sopouších vyvřelin v okrese Semily. Vznikly koncem 14. století; dvě věže Baba a Panna patří mezi nejznámější siluety české krajiny. Hrad spravuje Národní památkový ústav.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Trosky",
+      "wikipedia_lang": "cs",
+      "extra_media": [
+        "wikimedia:Trosky_z_jihu.jpg",
+        "wikimedia:Trosky_panorama.jpg"
+      ]
+    },
+    {
+      "id": "8923d545-4cda-49b0-8d5d-bcebc3687b38",
+      "order": 2,
+      "stop_order": 1,
+      "place_id": "osm:way:200102",
+      "media_id": "wikimedia:Hruba_Skala_panorama.jpg",
+      "lat": 50.532,
+      "lon": 15.19,
+      "name": "Hrubá Skála – zámek a skalní město",
+      "short_title": "Hrubá Skála",
+      "why_here": "Renesanční zámek nad pískovcovými skalními věžemi, oblíbená horolezecká destinace.",
+      "narration": "Hrubá Skála vznikla jako gotický hrad na pískovcovém ostrohu, později přestavěný do renesanční podoby. Pod zámkem se rozkládá skalní město s 30+ pojmenovanými věžemi; horolezci sem jezdí od 50. let.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Hrub%C3%A1_Sk%C3%A1la"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Hrubá Skála je zámek a stejnojmenné skalní město v Českém ráji. Renesanční přestavbu v 16. století objednali Smiřičtí ze Smiřic. Areál spadá pod CHKO Český ráj a UNESCO geopark.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Hrub%C3%A1_Sk%C3%A1la",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    },
+    {
+      "id": "16e78108-9f47-4381-9883-46d0220f543c",
+      "order": 3,
+      "stop_order": 2,
+      "place_id": "osm:node:100103",
+      "media_id": "wikimedia:Suche_skaly.jpg",
+      "lat": 50.638,
+      "lon": 15.181,
+      "name": "Suché skály",
+      "short_title": "Suché skály",
+      "why_here": "Pískovcový hřeben s 17 věžemi nad údolím Jizery, méně známé než Trosky.",
+      "narration": "Suché skály jsou ostrý pískovcový hřeben táhnoucí se nad obcí Besedice. Horolezecké tradice tu sahají do 20. let; nejvyšší věž Kapelník měří 70 metrů. Z hřebene vidíte na Ještěd i na Bezděz.",
+      "fallback_level": "FULL",
+      "score": 0.85,
+      "narration_confidence": 0.78,
+      "decision_reasons": [
+        "curated sample"
+      ],
+      "fallback_reason": null,
+      "emergency_threshold_used": false,
+      "grounding_sources": [
+        "https://cs.wikipedia.org/wiki/Such%C3%A9_sk%C3%A1ly"
+      ],
+      "used_llm_narration": false,
+      "llm_fallback_reason": null,
+      "wikipedia_summary": "Suché skály jsou pískovcový hřeben v Maloskalsku, součást CHKO Český ráj. Tvoří je 17 souvisle vystupujících věží orientovaných od severu k jihu.",
+      "wikipedia_url": "https://cs.wikipedia.org/wiki/Such%C3%A9_sk%C3%A1ly",
+      "wikipedia_lang": "cs",
+      "extra_media": []
+    }
+  ],
+  "summary": "Český ráj nabízí jednu z nejhustších koncentrací pískovcových skalních měst ve střední Evropě. Trasa kombinuje turistické klasiky (Hrubá Skála, Trosky) s méně známými vyhlídkami.",
+  "quality_flags": [],
+  "quality_metrics": {
+    "imagery_coverage_ratio": 1.0,
+    "fallback_distribution": {
+      "FULL": 3
+    },
+    "diversity_score": 0.75,
+    "route_coherence_score": 0.85,
+    "narration_confidence": 0.7799999999999999,
+    "context_richness": 0.7
+  },
+  "generation_metadata": {
+    "started_at": "2026-04-26T12:01:32.541695Z",
+    "completed_at": "2026-04-26T12:01:32.541695Z",
+    "intent_mode": "scenic_roadtrip",
+    "pipeline_steps": [
+      "intent_parser",
+      "region_discovery",
+      "place_discovery",
+      "media_resolution",
+      "experience_composer",
+      "narrator",
+      "wikipedia_enrichment"
+    ],
+    "provider_calls": {
+      "curated": 1
+    },
+    "cache_hits": {},
+    "total_candidates_evaluated": 0,
+    "warnings": [],
+    "decision_reasons": [
+      "curated sample seeded from script (bohemian-paradise-rocks)"
+    ],
+    "degradation_reason": null,
+    "route_coherence_applied": true,
+    "route_style_used": "linear",
+    "llm_narration_used": false,
+    "llm_narration_model": null,
+    "llm_fallback_count": 0
+  },
+  "created_at": "2026-04-26T12:01:32.541695Z",
+  "error_code": null,
+  "error_message": null,
+  "slug": "bohemian-paradise-rocks",
+  "title": "Skalní města Českého ráje",
+  "teaser": "Pětistovková zastávka mezi Hrubou Skálou a Suchými skalami — pískovcové věže, hrady na hřebeni a vyhlídky nad Jizerou.",
+  "cover_image": "https://commons.wikimedia.org/wiki/Special:FilePath/Hrub%C3%A1_Sk%C3%A1la_-_panor%C3%A1ma.jpg?width=600"
+}

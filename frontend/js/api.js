@@ -46,6 +46,20 @@ async function listExperiences(limit = 10) {
   return _request('GET', `/experiences?limit=${limit}`);
 }
 
+async function deleteExperience(jobId) {
+  if (!jobId) throw new Error('jobId je povinné');
+  return _request('DELETE', `/experiences/${encodeURIComponent(jobId)}`);
+}
+
+async function listSamples() {
+  return _request('GET', '/samples');
+}
+
+async function getSample(slug) {
+  if (!slug) throw new Error('slug je povinné');
+  return _request('GET', `/samples/${encodeURIComponent(slug)}`);
+}
+
 async function getHealth() {
   return _request('GET', '/health');
 }
@@ -88,6 +102,9 @@ window.api = {
   createExperience,
   getExperience,
   listExperiences,
+  deleteExperience,
+  listSamples,
+  getSample,
   getHealth,
   pollUntilDone,
 };

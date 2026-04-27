@@ -3,50 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0d1117" />
   <title>Experience — Detail</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  <meta name="description" id="meta-description" content="Detail experience: trasa s mapou, narace, zdroje." />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" id="meta-og-title" content="Experience — Detail" />
+  <meta property="og:description" id="meta-og-description" content="Detail experience: trasa s mapou, narace, zdroje." />
+  <meta property="og:image" id="meta-og-image" content="" />
+  <meta property="og:locale" content="cs_CZ" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" id="meta-twitter-title" content="Experience — Detail" />
+  <meta name="twitter:description" id="meta-twitter-description" content="" />
+  <meta name="twitter:image" id="meta-twitter-image" content="" />
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin="" />
   <link rel="stylesheet" href="css/main.css" />
 </head>
-<body style="padding-bottom:0;">
-  <header class="app-header">
+<body class="detail-page">
+  <header class="app-header" role="banner">
     <div>
       <h1>Experience App <span class="subtitle">detail</span></h1>
     </div>
-    <a href="index.html" class="btn btn-secondary" style="margin:0;padding:6px 12px;">← Zpět</a>
+    <div class="app-header-actions">
+      <button id="play-btn" type="button" class="btn hidden" aria-label="Spustit experience v plné obrazovce">
+        ▶ Spustit
+      </button>
+      <a href="index.html" class="btn btn-secondary btn-sm">← Zpět</a>
+    </div>
   </header>
 
-  <main class="detail-layout">
-    <aside class="detail-panel">
+  <main class="page detail-layout" role="main">
+    <aside class="detail-panel" aria-label="Detail experience">
       <div id="detail-header">
-        <div class="skeleton"><div class="skeleton-line long"></div><div class="skeleton-line med"></div></div>
+        <div class="skeleton" aria-hidden="true">
+          <div class="skeleton-line long"></div>
+          <div class="skeleton-line med"></div>
+        </div>
       </div>
 
       <div id="detail-metrics"></div>
 
       <div class="stops-header">
         <h2>Zastávky</h2>
+        <span class="stops-header-right">
+          <span id="stops-count" class="stops-count"></span>
+          <span class="hotkey-hint" aria-hidden="true">
+            <kbd>j</kbd><kbd>k</kbd> navigace · <kbd>Esc</kbd> zavřít
+          </span>
+        </span>
       </div>
-      <div id="stops-list" class="stops-list"></div>
+      <div id="stops-list" class="stops-list" aria-live="polite"></div>
 
       <div class="detail-footer">
-        <button id="copy-json-btn" class="btn btn-secondary">📋 Kopírovat JSON</button>
-        <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">← Zpět</a>
+        <a id="gpx-btn" class="btn btn-secondary btn-sm hidden" href="#" download>📍 Stáhnout GPX</a>
+        <button id="copy-json-btn" type="button" class="btn btn-secondary btn-sm">Kopírovat JSON</button>
         <details>
           <summary>Provider calls (debug)</summary>
           <div id="provider-details-body"></div>
         </details>
       </div>
+
+      <!-- Theater stage (rendered by JS when active) -->
+      <div id="theater-stage" class="theater-stage" hidden></div>
     </aside>
 
-    <div id="map"></div>
+    <div id="map" role="region" aria-label="Mapa zastávek"></div>
   </main>
+
+  <!-- Theater control bar (visible only in theater mode) -->
+  <div id="theater-controls" class="theater-controls" hidden>
+    <button id="theater-exit" type="button" class="theater-btn theater-btn-exit" aria-label="Ukončit přehrávání" title="Ukončit (Esc)">×</button>
+    <button id="theater-prev" type="button" class="theater-btn" aria-label="Předchozí zastávka" title="Předchozí (←)">◀</button>
+    <span id="theater-counter" class="theater-counter" aria-live="polite">1 / 1</span>
+    <button id="theater-next" type="button" class="theater-btn" aria-label="Další zastávka" title="Další (→)">▶</button>
+    <span class="theater-spacer"></span>
+    <button id="theater-autoplay" type="button" class="theater-btn theater-toggle" aria-pressed="false" aria-label="Automatický posun" title="Auto (mezerník)">▶ Auto</button>
+    <button id="theater-tts" type="button" class="theater-btn theater-toggle" aria-pressed="false" aria-label="Hlasové čtení" title="Číst nahlas (T)">🔊 Číst</button>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
   <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/media.js"></script>
   <script src="js/map.js"></script>
   <script src="js/experience.js"></script>
 </body>
